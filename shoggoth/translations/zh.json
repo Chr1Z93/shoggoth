@@ -1033,8 +1033,6 @@
   "PE_SECTION_PDF": "PDF",
   "PE_SECTION_TTS": "Tabletop Simulator",
   "PE_SECTION_ARKHAM_BUILD": "arkham.build（开发中）",
-  "PE_AB_WIP_TITLE": "arkham.build 导出功能尚未完成",
-  "PE_AB_WIP_NOTICE": "arkham.build 导出功能仍在开发中，尚未完成。如果导出的文件有错误或缺少内容，请向 Shoggoth 团队反馈，而不是向 arkham.build 团队反馈。",
   "PE_SECTION_GUIDES": "指南",
   "PE_PDF_FLAVOR_LABEL": "PDF 类型：",
   "PE_PRINCE_NOT_INSTALLED": "未安装 Prince XML，因此无法导出 PDF。请从导出菜单中安装。",

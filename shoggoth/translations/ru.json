@@ -1000,8 +1000,6 @@
   "PE_SECTION_PDF": "PDF",
   "PE_SECTION_TTS": "Tabletop Simulator",
   "PE_SECTION_ARKHAM_BUILD": "arkham.build (в разработке)",
-  "PE_AB_WIP_TITLE": "Экспорт в arkham.build не завершён",
-  "PE_AB_WIP_NOTICE": "Экспорт в arkham.build находится в разработке и ещё не завершён. Если в экспортированном файле что-то неверно или чего-то не хватает, сообщайте об этом команде Shoggoth, а не команде arkham.build.",
   "PE_SECTION_GUIDES": "Журналы",
   "PE_PDF_FLAVOR_LABEL": "Тип PDF:",
   "PE_PRINCE_NOT_INSTALLED": "Prince XML не установлен, поэтому экспорт в PDF недоступен. Установите его через меню «Экспорт».",

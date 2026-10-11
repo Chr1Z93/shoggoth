@@ -1033,8 +1033,6 @@
   "PE_SECTION_PDF": "PDF",
   "PE_SECTION_TTS": "Tabletop Simulator",
   "PE_SECTION_ARKHAM_BUILD": "arkham.build (en desarrollo)",
-  "PE_AB_WIP_TITLE": "La exportación a arkham.build no está terminada",
-  "PE_AB_WIP_NOTICE": "La exportación a arkham.build está en desarrollo y no está terminada. Si algo es incorrecto o falta en el archivo exportado, comunícalo al equipo de Shoggoth, no al equipo de arkham.build.",
   "PE_SECTION_GUIDES": "Guías",
   "PE_PDF_FLAVOR_LABEL": "Variante de PDF:",
   "PE_PRINCE_NOT_INSTALLED": "Prince XML no está instalado, así que la exportación a PDF no está disponible. Instálalo desde el menú Exportar.",
