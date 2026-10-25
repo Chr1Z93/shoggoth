@@ -8,6 +8,7 @@
 
 import re
 
+from shoggoth.card_translations import CARD_KEYWORD_DEFAULTS
 from shoggoth.files import font_dir
 from shoggoth.i18n import tr
 from shoggoth.renderer.richtext.model import Align, Token, TokenType
@@ -51,16 +52,6 @@ REPLACEMENT_TAGS = {
     '<dquoteend>': '”',
     '---': '—',
     '--': '–',
-}
-
-# Replacement tags whose expansion is translatable: tag -> (translation key, english default)
-_TRANSLATED_REPLACEMENTS = {
-    '<for>': ('<for>', '<b>Forced –</b>'),
-    '<prey>': ('<prey>', '<b>Prey –</b>'),
-    '<rev>': ('<rev>', '<b>Revelation –</b>'),
-    '<spawn>': ('<spawn>', '<b>Spawn –</b>'),
-    '<obj>': ('<obj>', '<b>Objective –</b>'),
-    '<objective>': ('<objective>', '<b>Objective –</b>'),
 }
 
 FONT_ICON_TAGS = {
@@ -215,8 +206,8 @@ class TagTable:
         self.translations = translations or {}
 
         self.replacement_tags = dict(REPLACEMENT_TAGS)
-        for tag, (key, fallback) in _TRANSLATED_REPLACEMENTS.items():
-            self.replacement_tags[tag] = self.translations.get(key, fallback)
+        for tag, fallback in CARD_KEYWORD_DEFAULTS.items():
+            self.replacement_tags[tag] = self.translations.get(tag, fallback)
 
         self.formatting_trie = build_trie(FORMATTING_TAGS)
         self.icon_trie = build_trie(FONT_ICON_TAGS)

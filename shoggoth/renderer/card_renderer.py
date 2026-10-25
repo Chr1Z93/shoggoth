@@ -6,7 +6,8 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from io import BytesIO
 from shoggoth.renderer.richtext import RichTextRenderer
-from shoggoth.files import template_dir, overlay_dir, icon_dir, asset_dir, defaults_dir, translation_dir, path_key
+from shoggoth.card_translations import load_card_translations
+from shoggoth.files import template_dir, overlay_dir, icon_dir, asset_dir, defaults_dir, path_key
 from shoggoth.perf import perf
 from shoggoth.util.shape_alpha import apply_shape_mask, subject_mask, FADE_FLAT
 from shoggoth.util.class_icon import tint_icon
@@ -227,12 +228,8 @@ class CardRenderer:
         self.locale = locale
         self.translations = {}
         if locale:
-            try:
-                with perf.span('Load translation file'):
-                    with open(translation_dir / f'{locale}.json', 'r', encoding='utf-8') as file:
-                        self.translations = json.load(file)
-            except Exception as e:
-                print('error while loading translation for renderer:', e)
+            with perf.span('Load translation file'):
+                self.translations = load_card_translations(locale)
         # Absent during __init__: the rich-text renderer is built afterwards
         # and reads the translations/locale itself.
         if hasattr(self, 'rich_text'):
