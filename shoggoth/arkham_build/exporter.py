@@ -56,7 +56,45 @@ def _export_cards(project):
         exported_cards.extend(export_card(card))
 
     add_deckbuilding_fields(cards, exported_cards)
+    _apply_card_metadata(cards, exported_cards)
     yield from exported_cards
+
+
+def _apply_card_metadata(cards, exported_cards):
+    """Apply explicit metadata to primary and separate back export records."""
+    by_code = {card["code"]: card for card in exported_cards}
+    for card in cards:
+        exported = by_code.get(card.id)
+        metadata = card.get_meta("arkham_build")
+        if exported is None or metadata is None:
+            continue
+
+        if not isinstance(metadata, dict):
+            logger.warning(
+                "Card arkham.build metadata must be a JSON object",
+                extra={"project_id": card.project.id, "card_id": card.id},
+            )
+            continue
+
+        back = by_code.get(exported.get("back_link"))
+
+        primary_metadata = dict(metadata)
+
+        back_metadata = primary_metadata.pop("back", None)
+        exported.update(primary_metadata)
+
+        if back_metadata is None:
+            continue
+
+        if not isinstance(back_metadata, dict):
+            logger.warning(
+                "Card arkham.build back metadata must be a JSON object",
+                extra={"project_id": card.project.id, "card_id": card.id},
+            )
+            continue
+
+        if back is not None:
+            back.update(back_metadata)
 
 
 def _project_meta(data):

@@ -7,6 +7,7 @@ from shoggoth.arkham_build.text import map_text
 def add_deckbuilding_fields(cards, exported_cards):
     """Add requirements and restrictions from investigator links and back entries."""
     by_code = {card["code"]: card for card in exported_cards}
+
     investigators = {}
     signatures = {}
 
@@ -14,20 +15,24 @@ def add_deckbuilding_fields(cards, exported_cards):
         exported = by_code.get(card.id)
         if exported is None or exported["type_code"] != "investigator":
             continue
+
         link = _investigator_link(card) or card.name
         investigators.setdefault(link, []).append(card)
+
         signatures[card.id] = []
 
     for card in cards:
         exported = by_code.get(card.id)
         if exported is None or exported["type_code"] == "investigator":
             continue
+
         owners = investigators.get(_investigator_link(card), [])
         if not owners:
             continue
 
         restriction = "investigator:" + ":".join(owner.id for owner in owners)
         exported["restrictions"] = restriction
+
         back = by_code.get(exported.get("back_link"))
         if back is not None:
             back["restrictions"] = restriction
@@ -59,6 +64,7 @@ def _deck_size_requirements(face):
     size = []
     for header, value in face.get("entries", []) or []:
         header = _plain_text(face, header).casefold()
+
         if header.rstrip(": ") == "deck size":
             match = re.fullmatch(r"(\d+)\.?", _plain_text(face, value))
             if match:

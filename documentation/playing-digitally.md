@@ -41,6 +41,32 @@ but are not added to deck requirements.
 The export also reads a single numeric deck size from the standard English
 **Deck Size** entry on the investigator's back.
 
+### Explicit deckbuilding data
+
+Use the card's **JSON** tab to add an `arkham_build` object under the card's
+`meta` object:
+
+```json
+{
+  "meta": {
+    "arkham_build": {
+      "deck_requirements": "size:30, random:subtype:basicweakness",
+      "deck_options": [],
+      "starts_in_hand": true,
+      "back": {
+        "custom_behavior": {}
+      }
+    }
+  }
+}
+```
+
+Use arkham.build field names and value formats. Explicit values replace
+generated values for the same field.
+
+The exporter reserves the nested `back` key. Fields inside `back` apply only
+to the separate back record linked by the generated `back_link`.
+
 For card images to show up in arkham.build, they must be hosted online. Enter an **Image URL pattern** with `{code}` where the card's code goes:
 
 ```

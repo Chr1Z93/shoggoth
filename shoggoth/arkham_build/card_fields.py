@@ -30,12 +30,8 @@ _SLOT_MAP = {
 }
 
 
-# TODO: Add a UI JSON field for deck_requirements, deck_options,
-# side_deck_requirements, side_deck_options, exile, starts_in_hand,
-# deck_options, starts_in_play, sticky_mulligan, attachments,
-# card_pool_extension, custom_behavior, and related deckbuilding data.
-# Export these values without parsing display text.
 # TODO: Parse deck requirements that use custom text or localized labels.
+# TODO: add programmatic deck_options parser.
 # TODO: Link customization cards to their parent cards and export
 # customization_text, customization_options, and customization_change.
 def export_face_fields(face):
@@ -228,7 +224,10 @@ def _deck_limit(face, text):
     if card.back.card_type == "encounter":
         return None
     if card.back.card_type != "player" and not {
-        "asset", "event", "skill", "investigator"
+        "asset",
+        "event",
+        "skill",
+        "investigator",
     }.intersection(card.card_types):
         return None
     return 1 if _has_keyword(text, "Exceptional") else card.amount
@@ -236,9 +235,7 @@ def _deck_limit(face, text):
 
 def _slots(face):
     slots = [
-        slot.strip().lower()
-        for slot in face.get("slots", []) or []
-        if slot.strip()
+        slot.strip().lower() for slot in face.get("slots", []) or [] if slot.strip()
     ]
     return ". ".join(_SLOT_MAP.get(slot, slot.title()) for slot in slots) or None
 
