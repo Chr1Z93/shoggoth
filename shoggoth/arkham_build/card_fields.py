@@ -32,10 +32,10 @@ _SLOT_MAP = {
 
 # TODO: Add a UI JSON field for deck_requirements, deck_options,
 # side_deck_requirements, side_deck_options, exile, starts_in_hand,
-# starts_in_play, sticky_mulligan, restrictions, attachments,
+# deck_options, starts_in_play, sticky_mulligan, attachments,
 # card_pool_extension, custom_behavior, and related deckbuilding data.
 # Export these values without parsing display text.
-# TODO: add a deck_option / deck_requirements parser.
+# TODO: Parse deck requirements that use custom text or localized labels.
 # TODO: Link customization cards to their parent cards and export
 # customization_text, customization_options, and customization_change.
 def export_face_fields(face):

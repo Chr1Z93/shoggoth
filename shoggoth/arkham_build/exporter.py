@@ -3,6 +3,7 @@ import logging
 
 from shoggoth.arkham_build.cards import export_card
 from shoggoth.arkham_build.constants import BuildMetaProjectStatus
+from shoggoth.arkham_build.deckbuilding import add_deckbuilding_fields
 from shoggoth.arkham_build.serialization import compact
 from shoggoth.card import Card
 from shoggoth.updater import get_current_version as shoggoth_version
@@ -38,8 +39,9 @@ def export_project(project, settings):
 
 def _export_cards(project):
     project_language = project.language or "en"
-    for data in project.data["cards"]:
-        card = Card(data, project)
+    cards = [Card(data, project) for data in project.data["cards"]]
+    exported_cards = []
+    for card in cards:
         language = card.effective_language or "en"
         if language != project_language:
             logger.warning(
@@ -51,7 +53,10 @@ def _export_cards(project):
                     "project_language": project_language,
                 },
             )
-        yield from export_card(card)
+        exported_cards.extend(export_card(card))
+
+    add_deckbuilding_fields(cards, exported_cards)
+    yield from exported_cards
 
 
 def _project_meta(data):
