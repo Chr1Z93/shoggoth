@@ -1,6 +1,7 @@
 import datetime
 import logging
 
+from shoggoth.arkham_build.assets import ImageAssetExporter
 from shoggoth.arkham_build.cards import export_card
 from shoggoth.arkham_build.constants import BuildMetaProjectStatus
 from shoggoth.arkham_build.deckbuilding import add_deckbuilding_fields
@@ -16,40 +17,52 @@ logger = logging.getLogger(__name__)
 # FIXME: `meta.banner_credit` is missing in UI
 # FIXME: `meta.types` is missing in UI
 # FIXME: `meta.url` could be derived for Celeano cloud projects
-# FIXME: `packs[].icon_url` is missing
-# FIXME: `encounter_sets[].icon_url` is missing
 def export_project(project, settings, renderer, *, card_executor):
-    """Export data and images.
-
-    card_executor(cards, export_card) must finish all tasks before it returns.
-    It must raise on task failure or cancellation.
-    """
     assert renderer is not None, "A configured renderer is required"
     assert callable(card_executor), "A card executor is required"
+
     data = project.data
     url_prefix = (settings.get("url_prefix") or "").strip().rstrip("/")
+    assets = ImageAssetExporter(project, url_prefix)
 
     return {
         "meta": _project_meta(data),
         "data": {
-            "cards": list(_export_cards(project, url_prefix, renderer, card_executor)),
-            "packs": [{"code": data["id"], "name": data["name"]}],
+            "cards": list(
+                _export_cards(project, url_prefix, renderer, card_executor, assets)
+            ),
+            "packs": [_export_group(data, assets)],
             "encounter_sets": [
-                {"code": set["id"], "name": set["name"]}
-                for set in data.get("encounter_sets", [])
+                _export_group(encounter_set, assets)
+                for encounter_set in data.get("encounter_sets", [])
             ],
         },
     }
 
 
-def _export_cards(project, url_prefix, renderer, card_executor):
+def _export_group(data, assets):
+    return {
+        "code": data["id"],
+        "name": data["name"],
+        **compact(
+            {
+                "icon_url": assets.export(data.get("icon"), resource_id=data["id"]),
+            }
+        ),
+    }
+
+
+def _export_cards(project, url_prefix, renderer, card_executor, assets):
     project_language = project.language or "en"
+
     cards = [Card(data, project) for data in project.data["cards"]]
     exported_cards = []
+
     image_jobs = []
 
     for card in cards:
         language = card.effective_language or "en"
+
         if language != project_language:
             logger.warning(
                 "Card language differs from project export language",
@@ -60,9 +73,11 @@ def _export_cards(project, url_prefix, renderer, card_executor):
                     "project_language": project_language,
                 },
             )
-        records = export_card(card)
+
+        records = export_card(card, image_mapper=assets.map_tag)
         if url_prefix and records:
             image_jobs.append((card, records))
+
         exported_cards.extend(records)
 
     if image_jobs:
@@ -75,6 +90,7 @@ def _export_cards(project, url_prefix, renderer, card_executor):
 
     add_deckbuilding_fields(cards, exported_cards)
     _apply_card_metadata(cards, exported_cards)
+
     yield from exported_cards
 
 

@@ -7,7 +7,7 @@ from shoggoth.arkham_build.constants import (
 )
 
 
-def export_card(card):
+def export_card(card, *, image_mapper=None):
     front = card.front
     back = card.back
 
@@ -16,7 +16,7 @@ def export_card(card):
     if front_type == UNSUPPORTED_TYPE:
         return []
 
-    front_face = _export_face(card.id, front, front_type)
+    front_face = _export_face(card.id, front, front_type, image_mapper)
 
     if back_type in {CARD_BACK_TYPE, UNSUPPORTED_TYPE}:
         return [front_face]
@@ -25,7 +25,9 @@ def export_card(card):
         front_face.update(
             {
                 f"back_{field}": value
-                for field, value in export_face_fields(back).items()
+                for field, value in export_face_fields(
+                    back, image_mapper=image_mapper
+                ).items()
                 if field
                 in {
                     "name",
@@ -40,14 +42,14 @@ def export_card(card):
         front_face["double_sided"] = True
         return [front_face]
 
-    back_face = _export_face(f"{card.id}_back", back, back_type)
+    back_face = _export_face(f"{card.id}_back", back, back_type, image_mapper)
     front_face["back_link"] = back_face["code"]
     back_face["hidden"] = True
 
     return [front_face, back_face]
 
 
-def _export_face(code, face, card_type):
+def _export_face(code, face, card_type, image_mapper):
     type_code, _ = card_type
     assert type_code not in {None, INDETERMINATE_TYPE}
 
@@ -55,5 +57,5 @@ def _export_face(code, face, card_type):
         "code": code,
         "pack_code": face.card.project.id,
         "type_code": type_code,
-        **export_face_fields(face),
+        **export_face_fields(face, image_mapper=image_mapper),
     }

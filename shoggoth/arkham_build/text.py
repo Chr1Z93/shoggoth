@@ -22,6 +22,11 @@ _VALUE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_ICON_TAG_PATTERN = re.compile(
+    r"""<(exi|esi|project\.icon|encounter\.icon)(?=\s|>)((?:[^<>"']|"[^"]*"|'[^']*')*)>""",
+    re.IGNORECASE,
+)
+
 _ICON_SPAN_PATTERN = r"<icon>[\s\S]*?</icon>"
 
 _TAG_PATTERN = re.compile(
@@ -47,14 +52,7 @@ TAG_REMOVALS = [
     r"<margin\s+\d+(?:\s+\d+)*>",
     r"<spacing\s+(?:\d+(?:\.\d*)?|\.\d+)>",
     "<valign>",
-    # TODO: Export inline images with hosted URLs.
     r"<image(?:\s+[^>]*)?>",
-    # TODO: Export project icons with hosted URLs.
-    "<exi>",
-    r"<project\.icon(?:\s+[^>]*)?>",
-    # TODO: Export encounter-set icons with hosted URLs.
-    "<esi>",
-    r"<encounter\.icon(?:\s+[^>]*)?>",
     # TODO: Add glyphs to the arkham.build icon font.
     "<resource>",
     "<clues>",
@@ -135,8 +133,29 @@ _TEXT_PATTERN = re.compile(
 )
 
 
-def map_text(face, field, value, *, tag_map=None):
-    mapper = _TextMapper(tag_map)
+def expand_icon_tags(value, face):
+    """Expand project and encounter icon aliases into inline image tags."""
+    def replace(match):
+        kind = match[1].lower()
+        project = face.card.project
+        if kind in {"exi", "project.icon"}:
+            source = project.icon
+        else:
+            encounter = face.card.encounter
+            source = encounter.icon if encounter else None
+
+        if not source:
+            return "" if kind in {"exi", "esi"} else f'<image src=""{match[2]}>'
+
+        source = project.find_file(source) or source
+        attributes = ' color="inverted"' if kind in {"exi", "esi"} else match[2]
+        return f'<image src="{source}"{attributes}>'
+
+    return _ICON_TAG_PATTERN.sub(replace, value)
+
+
+def map_text(face, field, value, *, tag_map=None, image_mapper=None):
+    mapper = _TextMapper(tag_map, image_mapper)
 
     # Shoggoth supports references like <copy> or <name> and translations, resolve before mapping
     resolved_text = mapper.resolve_values(face, field, value)
@@ -153,8 +172,9 @@ def _replace_plain_text(value):
 class _TextMapper:
     """Keep translation catalogs and field overrides within one mapping call."""
 
-    def __init__(self, tag_overrides):
+    def __init__(self, tag_overrides, image_mapper):
         self._tag_overrides = tag_overrides or {}
+        self._image_mapper = image_mapper
         self._translations_by_language = {}
 
     def resolve_values(self, face, field, value, reference_path=frozenset()):
@@ -230,6 +250,15 @@ class _TextMapper:
 
         if key in self._tag_overrides:
             return self._tag_overrides[key]
+
+        expanded = expand_icon_tags(tag, face)
+        if expanded != tag:
+            return self.map_tags(face, expanded, keyword_path)
+
+        if self._image_mapper is not None:
+            image = self._image_mapper(face, tag)
+            if image is not None:
+                return image
 
         if any(re.fullmatch(pattern, tag, re.IGNORECASE) for pattern in TAG_REMOVALS):
             return ""

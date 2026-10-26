@@ -34,15 +34,15 @@ _SLOT_MAP = {
 # TODO: add programmatic deck_options parser.
 # TODO: Link customization cards to their parent cards and export
 # customization_text, customization_options, and customization_change.
-def export_face_fields(face):
-    text = _text(face)
+def export_face_fields(face, *, image_mapper=None):
+    text = _text(face, image_mapper)
     return {
         **compact(
             {
-                "name": _name(face),
-                "subname": _optional_text(face, "subtitle"),
+                "name": _name(face, image_mapper),
+                "subname": _optional_text(face, "subtitle", image_mapper),
                 "subtype_code": _subtype(face),
-                "traits": _optional_text(face, "traits"),
+                "traits": _optional_text(face, "traits", image_mapper),
                 "text": text,
                 # TODO: Add localized keyword labels to the asset translation catalogs.
                 "permanent": _has_keyword(text, "Permanent"),
@@ -50,8 +50,8 @@ def export_face_fields(face):
                 "myriad": _has_keyword(text, "Myriad"),
                 "deck_limit": _deck_limit(face, text),
                 "is_unique": _is_unique(face),
-                "illustrator": _optional_text(face, "illustrator"),
-                "flavor": _optional_text(face, "flavor_text"),
+                "illustrator": _optional_text(face, "illustrator", image_mapper),
+                "flavor": _optional_text(face, "flavor_text", image_mapper),
                 "position": _parse_position(face.card.project_number) or 0,
                 "quantity": face.card.amount,
                 "encounter_code": face.card.get("encounter_set") or None,
@@ -143,8 +143,10 @@ def _default_faction(face):
     return "neutral"
 
 
-def _name(face):
-    return map_text(face, "name", face.get("name") or face.card.name).strip()
+def _name(face, image_mapper):
+    return map_text(
+        face, "name", face.get("name") or face.card.name, image_mapper=image_mapper
+    ).strip()
 
 
 def _is_unique(face):
@@ -157,15 +159,15 @@ def _is_unique(face):
     return "<unique>" in name or None
 
 
-def _optional_text(face, field):
+def _optional_text(face, field, image_mapper=None):
     value = face.get(field, None)
     if value is None:
         return None
-    return map_text(face, field, value).strip() or None
+    return map_text(face, field, value, image_mapper=image_mapper).strip() or None
 
 
-def _text(face):
-    text = _optional_text(face, "text")
+def _text(face, image_mapper):
+    text = _optional_text(face, "text", image_mapper)
     if text is not None:
         return text
 
@@ -184,7 +186,7 @@ def _text(face):
         return None
 
     text = "\n".join(line for line in lines if line)
-    return map_text(face, "text", text).strip() or None
+    return map_text(face, "text", text, image_mapper=image_mapper).strip() or None
 
 
 def _chaos_entry(entry):
@@ -234,9 +236,7 @@ def _deck_limit(face, text):
 
 
 def _slots(face):
-    slots = [
-        slot.strip().lower() for slot in face.get("slots", []) if slot.strip()
-    ]
+    slots = [slot.strip().lower() for slot in face.get("slots", []) if slot.strip()]
     return ". ".join(_SLOT_MAP.get(slot, slot.title()) for slot in slots) or None
 
 

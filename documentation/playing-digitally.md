@@ -68,7 +68,7 @@ generated values for the same field.
 The exporter reserves the nested `back` key. Fields inside `back` apply only
 to the separate back record linked by the generated `back_link`.
 
-### Card images
+### Card images and icons
 
 Enter an **Image URL prefix** for the server where you will host the images:
 
@@ -76,8 +76,19 @@ Enter an **Image URL prefix** for the server where you will host the images:
 https://example.com/cards
 ```
 
-With a prefix set, the export saves images and thumbnails in
+With a prefix set, the export saves images, thumbnails and icons in
 `Export of <project name>/arkham-build/<project ID>/` inside the project folder.
+
+The export copies the project icon, encounter set icons, and inline images
+from card text into the `assets/` subfolder. These files keep their original
+format and content. The export does not convert or recolor them. Shared images
+are copied only once.
+
+Pack and encounter set `icon_url` fields use the same URL prefix. Inline
+`<image src="…">`, `<exi>`, `<esi>`, `<project.icon>`, and `<encounter.icon>` tags
+become HTML images with hosted URLs. Color attributes are not applied.
+If an image file is missing, the export logs a warning and omits its reference.
+
 Upload the project ID folder to that URL. Shoggoth does not upload images for you.
 
 Leave the prefix empty to skip images.
