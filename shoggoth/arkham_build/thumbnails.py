@@ -1,8 +1,10 @@
-from pathlib import Path
-
 from PIL import Image
 
-from shoggoth.arkham_build.card_types import UNSUPPORTED_TYPE
+from shoggoth.arkham_build.card_types import (
+    ACT_AGENDA_FULL_TEMPLATE,
+    UNSUPPORTED_TYPE,
+    face_template,
+)
 from shoggoth.renderer.card_renderer import CARD_SIZES
 
 
@@ -31,20 +33,26 @@ _REGIONS = {
 def extract_thumbnail(image, face, card_type):
     """Crop and resize a 128 x 128 thumbnail from the rendered face."""
     if card_type == UNSUPPORTED_TYPE:
-        size = max(1, round(min(image.size) * 0.8))
-        left = (image.width - size) // 2
-        top = (image.height - size) // 2
-        return image.resize(
-            (128, 128), Image.Resampling.LANCZOS,
-            box=(left, top, left + size, top + size),
-        )
+        box = _center_box(image)
+    else:
+        box = _region_box(image, face, card_type)
+    return image.resize((128, 128), Image.Resampling.LANCZOS, box=box)
 
-    layout = _layout(face, card_type, image.width > image.height)
-    x, y, size = _REGIONS[layout]
+
+def _center_box(image):
+    size = max(1, round(min(image.size) * 0.8))
+    left = (image.width - size) // 2
+    top = (image.height - size) // 2
+    return left, top, left + size, top + size
+
+
+def _region_box(image, face, card_type):
+    horizontal = image.width > image.height
+    x, y, size = _REGIONS[_layout(face, card_type, horizontal)]
+
     canvas = CARD_SIZES["standard"]
-
     base_width, base_height = canvas["width"], canvas["height"]
-    if image.width > image.height:
+    if horizontal:
         base_width, base_height = base_height, base_width
 
     left = round(x * image.width / base_width)
@@ -53,23 +61,18 @@ def extract_thumbnail(image, face, card_type):
     height = round(size * image.height / base_height)
 
     overflow = max(left + width - image.width, top + height - image.height, 0)
-
     width -= overflow
     height -= overflow
 
     assert width > 0 and height > 0, "Thumbnail region must fit the rendered image"
-
-    return image.resize(
-        (128, 128), Image.Resampling.LANCZOS,
-        box=(left, top, left + width, top + height),
-    )
+    return left, top, left + width, top + height
 
 
 def _layout(face, card_type, horizontal):
     type_code, is_backside = card_type
-    template = Path(face.get("type") or "").stem
+    template, _ = face_template(face)
 
-    if template.removesuffix("_back") == "act_agenda_full":
+    if template == ACT_AGENDA_FULL_TEMPLATE:
         return "full"
 
     if type_code == "enemy" and horizontal:

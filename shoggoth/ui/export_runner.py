@@ -246,7 +246,7 @@ def _run_arkham_build(project, settings, renderer, parent=None):
     data = arkham_build.export_project(
         project, settings, renderer, card_executor=execute_cards
     )
-    output_path = default_export_folder(project) / "arkham-build" / f"{project.id}.json"
+    output_path = arkham_build.export_folder(project) / f"{project.id}.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, 'w', encoding='utf-8') as f:

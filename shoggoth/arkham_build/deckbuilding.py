@@ -54,12 +54,14 @@ def _plain_text(face, value):
 
 
 def _deck_size_requirements(face):
-    size = []
+    """The size requirement from the last valid "Deck Size" entry, if any."""
+    # TODO: Match localized "Deck Size" labels.
+    requirements = []
     for header, value in face.get("entries", []):
-        header = _plain_text(face, header).casefold()
+        if _plain_text(face, header).casefold().rstrip(": ") != "deck size":
+            continue
 
-        if header.rstrip(": ") == "deck size":
-            match = re.fullmatch(r"(\d+)\.?", _plain_text(face, value))
-            if match:
-                size = [f"size:{int(match[1])}"]
-    return size
+        match = re.fullmatch(r"(\d+)\.?", _plain_text(face, value))
+        if match:
+            requirements = [f"size:{int(match[1])}"]
+    return requirements

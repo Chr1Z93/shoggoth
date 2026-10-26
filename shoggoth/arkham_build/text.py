@@ -127,39 +127,41 @@ _TEXT_MAP = {
 _TEXT_PATTERN = re.compile(
     _TAG_PATTERN.pattern
     + "|"
-    + "|".join(re.escape(text) for text in sorted(_TEXT_MAP, key=len, reverse=True))
+    + "|".join(re.escape(text) for text in sorted(_TEXT_MAP, key=len, reverse=True)),
+    re.IGNORECASE,
 )
 
 
-def _expand_icon_tags(value, face):
-    """Expand project and encounter icon aliases into inline image tags."""
+def _icon_image(face, match):
+    """Expand a project or encounter icon alias into an inline image tag."""
+    kind = match[1].lower()
+    project = face.card.project
+    if kind in {"exi", "project.icon"}:
+        source = project.icon
+    else:
+        encounter = face.card.encounter
+        source = encounter.icon if encounter else None
 
-    def replace(match):
-        kind = match[1].lower()
-        project = face.card.project
-        if kind in {"exi", "project.icon"}:
-            source = project.icon
-        else:
-            encounter = face.card.encounter
-            source = encounter.icon if encounter else None
+    if not source:
+        return ""
 
-        if not source:
-            return "" if kind in {"exi", "esi"} else f'<image src=""{match[2]}>'
-
-        source = project.find_file(source) or source
-        attributes = ' color="inverted"' if kind in {"exi", "esi"} else match[2]
-        return f'<image src="{source}"{attributes}>'
-
-    return _ICON_TAG_PATTERN.sub(replace, value)
+    source = project.find_file(source) or source
+    attributes = ' color="inverted"' if kind in {"exi", "esi"} else match[2]
+    return f'<image src="{source}"{attributes}>'
 
 
-def map_text(face, field, value, *, tag_map=None, image_mapper=None):
-    mapper = _TextMapper(tag_map, image_mapper)
+def map_text(face, field, value, *, image_mapper=None):
+    mapper = _TextMapper(image_mapper)
 
     # Resolve references and translations before mapping tags.
     resolved_text = mapper.resolve_values(face, field, value)
 
     return _replace_plain_text(mapper.map_tags(face, resolved_text))
+
+
+def resolve_text(face, field, value):
+    """Resolve references and translations, keeping all tags."""
+    return _TextMapper(None).resolve_values(face, field, value)
 
 
 def _replace_plain_text(value):
@@ -169,12 +171,8 @@ def _replace_plain_text(value):
 
 
 class _TextMapper:
-    """Keep translation catalogs and field overrides within one mapping call."""
-
-    def __init__(self, tag_overrides, image_mapper):
-        self._tag_overrides = tag_overrides or {}
+    def __init__(self, image_mapper):
         self._image_mapper = image_mapper
-        self._translations_by_language = {}
 
     def resolve_values(self, face, field, value, reference_path=frozenset()):
         reference_key = (face.card.id, id(face.data), field, value)
@@ -218,9 +216,7 @@ class _TextMapper:
             raise ValueError(f"Unknown text reference: {match.group(0)}")
 
         referenced_value = element.data
-        reference_field = match.group("field").strip()
-
-        field_path = reference_field.split(".")
+        field_path = match.group("field").strip().split(".")
         for part in field_path:
             if not isinstance(referenced_value, dict) or part not in referenced_value:
                 raise ValueError(f"Unknown text reference: {match.group(0)}")
@@ -230,13 +226,11 @@ class _TextMapper:
             raise ValueError(f"Invalid text reference: {match.group(0)}")
 
         referenced_face = face
-
         if isinstance(element, Card):
             referenced_face = element.back if field_path[0] == "back" else element.front
-            reference_field = field_path[-1]
 
         return self.resolve_values(
-            referenced_face, reference_field, str(referenced_value), reference_path
+            referenced_face, field_path[-1], str(referenced_value), reference_path
         )
 
     def map_tags(self, face, value, keyword_path=frozenset()):
@@ -247,15 +241,12 @@ class _TextMapper:
     def _map_tag(self, face, tag, keyword_path):
         key = tag.lower()
 
-        if key in self._tag_overrides:
-            return self._tag_overrides[key]
-
-        expanded = _expand_icon_tags(tag, face)
-        if expanded != tag:
-            return self.map_tags(face, expanded, keyword_path)
+        icon = _ICON_TAG_PATTERN.fullmatch(tag)
+        if icon is not None:
+            return self.map_tags(face, _icon_image(face, icon), keyword_path)
 
         if self._image_mapper is not None:
-            image = self._image_mapper(face, tag)
+            image = self._image_mapper(tag)
             if image is not None:
                 return image
 
@@ -271,7 +262,7 @@ class _TextMapper:
         if key in keyword_path:
             raise ValueError(f"Circular keyword translation: {key}")
 
-        catalog = self._get_translations(face.card.effective_language or "en")
+        catalog = load_card_translations(face.card.effective_language or "en")
         translated_text = catalog.get(key, CARD_KEYWORD_DEFAULTS[key])
 
         return self.map_tags(face, translated_text, keyword_path | {key})
@@ -281,7 +272,7 @@ class _TextMapper:
             return value
 
         language = face.card.effective_language or "en"
-        catalog = self._get_translations("en") | self._get_translations(language)
+        catalog = load_card_translations("en") | load_card_translations(language)
 
         keys = sorted((key for key in catalog if key), key=len, reverse=True)
         if not keys:
@@ -291,9 +282,3 @@ class _TextMapper:
             r"%:(?:" + "|".join(re.escape(key) for key in keys) + r")(?!\w)"
         )
         return pattern.sub(lambda match: catalog[match.group(0)[2:]], value)
-
-    def _get_translations(self, language):
-        if language not in self._translations_by_language:
-            self._translations_by_language[language] = load_card_translations(language)
-
-        return self._translations_by_language[language]

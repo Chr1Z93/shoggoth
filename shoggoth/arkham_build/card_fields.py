@@ -1,8 +1,7 @@
 from html import unescape
 import re
 
-from shoggoth.arkham_build.serialization import compact
-from shoggoth.arkham_build.text import map_text
+from shoggoth.arkham_build.text import map_text, resolve_text
 from shoggoth.card_translations import load_card_translations
 
 
@@ -34,7 +33,7 @@ _SKILL_MAP = {
 }
 
 
-_ENCOUNTER_TYPES = {
+_ENCOUNTER_ROLES = {
     "enemy",
     "enemy_location",
     "treachery",
@@ -47,10 +46,33 @@ _ENCOUNTER_TYPES = {
 }
 
 
+_FACTIONS = (
+    "guardian",
+    "seeker",
+    "rogue",
+    "mystic",
+    "survivor",
+    "neutral",
+    "mythos",
+)
+
+
+# Chaos tokens are named after Shoggoth's chaos_<token>.png overlays.
+_CHAOS_TOKEN_ICONS = {
+    "fail": "auto_fail",
+    "blessing": "bless",
+}
+
+
 _SLOT_MAP = {
     "hands": "Hand x2",
     "arcanes": "Arcane x2",
 }
+
+
+def compact(values):
+    """Drop fields without a value."""
+    return {key: value for key, value in values.items() if value is not None}
 
 
 # TODO: Parse deck requirements that use custom text or localized labels.
@@ -122,26 +144,8 @@ def _stage(face):
 
 def _factions(face):
     classes = face.get("classes", [])
-    factions = []
-    for faction in classes:
-        if (
-            faction
-            in (
-                "guardian",
-                "seeker",
-                "rogue",
-                "mystic",
-                "survivor",
-                "neutral",
-                "mythos",
-            )
-            and faction not in factions
-        ):
-            factions.append(faction)
-
-    if not factions:
-        factions = [_default_faction(face)]
-
+    factions = list(dict.fromkeys(c for c in classes if c in _FACTIONS))
+    factions = factions or [_default_faction(face)]
     return dict(zip(("faction_code", "faction2_code", "faction3_code"), factions))
 
 
@@ -156,28 +160,25 @@ def _subtype(face):
 
 def _default_faction(face):
     card = face.card
-    if card.data.get("encounter_set") and (
-        _ENCOUNTER_TYPES.intersection(card.card_types)
+    if card.get("encounter_set") and (
+        _ENCOUNTER_ROLES.intersection(card.card_types)
         or card.back.card_type == "encounter"
     ):
         return "mythos"
     return "neutral"
 
 
+def _raw_name(face):
+    return face.get("name") or face.card.name
+
+
 def _name(face, image_mapper):
-    return map_text(
-        face, "name", face.get("name") or face.card.name, image_mapper=image_mapper
-    ).strip()
+    return map_text(face, "name", _raw_name(face), image_mapper=image_mapper).strip()
 
 
 def _is_unique(face):
-    name = map_text(
-        face,
-        "name",
-        face.get("name") or face.card.name,
-        tag_map={"<unique>": "<unique>"},
-    )
-    return "<unique>" in name or None
+    name = resolve_text(face, "name", _raw_name(face))
+    return "<unique>" in name.lower() or None
 
 
 def _optional_text(face, field, image_mapper=None):
@@ -220,12 +221,16 @@ def _chaos_entry(entry):
         if token is None or not str(token).strip():
             continue
         token = str(token).strip()
-        token = {"fail": "auto_fail", "blessing": "bless"}.get(token, token)
+        token = _CHAOS_TOKEN_ICONS.get(token, token)
         labels.append(token if re.fullmatch(r"[+-]?\d+", token) else f"[{token}]")
 
     label = ", ".join(labels)
     text = entry.get("text") or ""
     return f"{label}: {text}".strip() if label else text.strip()
+
+
+def _collapse_tags(text):
+    return " ".join(re.sub(r"<[^>]*>", "", text).split())
 
 
 def _keywords(text):
@@ -290,29 +295,36 @@ def _victory(face):
     text = _optional_text(face, "victory")
     if text is None:
         return {}
-    text = " ".join(re.sub(r"<[^>]*>", "", text).split())
+
+    text = _collapse_tags(text)
     parsed = _parse_numeric_value(text)
     if parsed is not None:
         return {"victory": parsed[0]}
+
     translations = load_card_translations(face.card.effective_language or "en")
+    return compact(
+        {
+            field: _labeled_points(text, label, field, translations)
+            for field, label in (("victory", "Victory"), ("vengeance", "Vengeance"))
+        }
+    )
 
-    for field, label in (("victory", "Victory"), ("vengeance", "Vengeance")):
-        templates = (
-            f"{label} {{input}}",
-            f"{translations.get(field.upper(), label)} {{input}}",
-            translations.get(f"{field} format", ""),
-        )
-        for template in templates:
-            if "{input}" not in template:
-                continue
-            template = " ".join(re.sub(r"<[^>]*>", "", template).split())
-            pattern = re.escape(template).replace(r"\{input\}", r"(\d+)")
-            match = re.search(rf"(?<!\w){pattern}(?!\d)", text, re.IGNORECASE)
-            if match:
-                values[field] = int(match[1])
-                break
 
-    return values
+def _labeled_points(text, label, field, translations):
+    """Parse e.g. "Victory 2." using the English or translated label."""
+    templates = (
+        f"{label} {{input}}",
+        f"{translations.get(field.upper(), label)} {{input}}",
+        translations.get(f"{field} format", ""),
+    )
+    for template in dict.fromkeys(templates):
+        if "{input}" not in template:
+            continue
+        pattern = re.escape(_collapse_tags(template)).replace(r"\{input\}", r"(\d+)")
+        match = re.search(rf"(?<!\w){pattern}(?!\d)", text, re.IGNORECASE)
+        if match:
+            return int(match[1])
+    return None
 
 
 def _xp(face):
@@ -330,10 +342,9 @@ def _numeric_field(face, key, *, target=None):
     field = target or key
     values = {field: value}
 
-    if field in _PER_INVESTIGATOR_MAP:
-        mapping_key, mapping_criteria = _PER_INVESTIGATOR_MAP[field]
-        if per_investigator == mapping_criteria:
-            values[mapping_key] = True
+    flag, flag_when = _PER_INVESTIGATOR_MAP.get(field, (None, None))
+    if flag and value is not None and per_investigator == flag_when:
+        values[flag] = True
 
     return values
 

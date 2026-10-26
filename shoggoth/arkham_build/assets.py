@@ -2,9 +2,9 @@ import hashlib
 from html import escape
 import re
 import shutil
-from urllib.parse import quote
 
-from shoggoth.files import default_export_folder, overlay_dir
+from shoggoth.arkham_build.output import export_file, export_url
+from shoggoth.files import overlay_dir
 from shoggoth.renderer.richtext.tags import parse_tag_attributes
 
 
@@ -31,31 +31,22 @@ class ImageAssetExporter:
             return None
 
         path = path.resolve()
+        if path in self._urls_by_path:
+            return self._urls_by_path[path]
 
-        if path not in self._urls_by_path:
-            with path.open("rb") as image:
-                digest = hashlib.file_digest(image, "sha256").hexdigest()
+        with path.open("rb") as image:
+            digest = hashlib.file_digest(image, "sha256").hexdigest()
 
-            filename = f"{digest}{path.suffix}"
-            folder = (
-                default_export_folder(self.project)
-                / "arkham-build"
-                / self.project.id
-                / "assets"
-            )
-            folder.mkdir(parents=True, exist_ok=True)
+        filename = f"assets/{digest}{path.suffix}"
+        destination = export_file(self.project, filename)
+        if not destination.exists():
+            shutil.copyfile(path, destination)
 
-            destination = folder / filename
-            if not destination.exists():
-                shutil.copyfile(path, destination)
+        url = export_url(self.url_prefix, self.project, filename)
+        self._urls_by_path[path] = url
+        return url
 
-            self._urls_by_path[path] = (
-                f"{self.url_prefix}/{self.project.id}/assets/{quote(filename)}"
-            )
-
-        return self._urls_by_path[path]
-
-    def map_tag(self, face, tag):
+    def map_tag(self, tag):
         """Return image HTML, an empty string, or None for a non-image tag."""
         if _IMAGE_TAG_PATTERN.match(tag) is None:
             return None
@@ -63,9 +54,7 @@ class ImageAssetExporter:
         attributes = {
             key.lower(): value for key, value in parse_tag_attributes(tag).items()
         }
-        source = attributes.get("src")
-
-        url = self.export(source)
+        url = self.export(attributes.get("src"))
         if url is None:
             return ""
 

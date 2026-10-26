@@ -1,13 +1,30 @@
+from enum import Enum, auto
 from pathlib import Path
+from typing import NamedTuple
 
 
-UNSUPPORTED_TYPE = (None, False)
-CARD_BACK_TYPE = (None, True)
+class CardType(NamedTuple):
+    code: str
+    is_backside: bool
+
+
+class NoCardType(Enum):
+    """Faces that are not exported as an arkham.build card."""
+
+    UNSUPPORTED = auto()
+    # A generic player or encounter card back.
+    CARD_BACK = auto()
+
+
+UNSUPPORTED_TYPE = NoCardType.UNSUPPORTED
+CARD_BACK_TYPE = NoCardType.CARD_BACK
+ACT_AGENDA_FULL_TEMPLATE = "act_agenda_full"
 _INDETERMINATE_TYPE = "indeterminate"
 
 
 _TYPE_MAP = {
-    "act_agenda_full": _INDETERMINATE_TYPE,
+    # Legacy types without a card_type use their template name as role.
+    ACT_AGENDA_FULL_TEMPLATE: _INDETERMINATE_TYPE,
     "chaos": "scenario",
 }
 
@@ -49,35 +66,37 @@ def resolve_card_types(front, back):
 
 
 def is_double_sided(front_type, back_type):
-    if front_type == back_type == ("scenario", False):
+    if front_type == back_type == CardType("scenario", False):
         return True
 
-    type_code, is_front_backside = front_type
-    back_type_code, is_back_backside = back_type
     return (
-        type_code in {"act", "agenda", "investigator", "location"}
-        and type_code == back_type_code
-        and not is_front_backside
-        and is_back_backside
+        front_type.code in {"act", "agenda", "investigator", "location"}
+        and front_type.code == back_type.code
+        and not front_type.is_backside
+        and back_type.is_backside
     )
 
 
+def face_template(face):
+    """The face's template name without "_back", and whether it is a back."""
+    template = Path(face.get("type") or "").stem
+    return template.removesuffix("_back"), template.endswith("_back")
+
+
 def _card_type(card_face):
-    template = Path(card_face.get("type") or "").stem
-    if template.removesuffix("_back") in _UNSUPPORTED_TEMPLATES:
+    template, is_backside = face_template(card_face)
+    if template in _UNSUPPORTED_TEMPLATES:
         return UNSUPPORTED_TYPE
 
     roles = card_face.card_types
     if not roles:
         return UNSUPPORTED_TYPE
 
-    is_backside = template.endswith("_back")
-
     if {"act", "agenda"}.issubset(roles):
-        return _INDETERMINATE_TYPE, is_backside
+        return CardType(_INDETERMINATE_TYPE, is_backside)
 
     if {"enemy", "location"}.issubset(roles):
-        return "enemy_location", is_backside
+        return CardType("enemy_location", is_backside)
 
     if roles[0] in {"player", "encounter"}:
         return CARD_BACK_TYPE
@@ -86,17 +105,15 @@ def _card_type(card_face):
     if type_code not in _SUPPORTED_TYPES:
         return UNSUPPORTED_TYPE
 
-    return type_code, is_backside
+    return CardType(type_code, is_backside)
 
 
 def _resolve_indeterminate_type(card_type, other_type):
     """Some card types can only be resolved via the other card side."""
-    type_code, is_backside = card_type
-    if type_code != _INDETERMINATE_TYPE:
+    if isinstance(card_type, NoCardType) or card_type.code != _INDETERMINATE_TYPE:
         return card_type
 
-    other_type_code, _ = other_type
-    if other_type_code not in {"act", "agenda"}:
+    if isinstance(other_type, NoCardType) or other_type.code not in {"act", "agenda"}:
         return UNSUPPORTED_TYPE
 
-    return other_type_code, is_backside
+    return CardType(other_type.code, card_type.is_backside)
