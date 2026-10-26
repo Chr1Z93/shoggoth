@@ -31,7 +31,8 @@ The exported object points to the card images _on your computer_, so other playe
 
 > **Work in progress.** The arkham.build export is not finished, which is why the entry is labelled **arkham.build (WIP)** and Shoggoth reminds you after each export. If something in the exported file is wrong or missing, report it to the Shoggoth team, not to the arkham.build team.
 
-[arkham.build](https://arkham.build) is a popular deck builder that supports fan-made content. An **arkham.build (WIP)** entry creates `<project name>_arkham_build.json` in your project folder, describing every card in the arkham.build format: types, classes, costs, traits, text, deckbuilding requirements and signature cards.
+[arkham.build](https://arkham.build) is a popular deck builder that supports fan-made content. An **arkham.build (WIP)** entry saves card data to
+`Export of <project name>/arkham-build/<project ID>.json` inside the project folder.
 
 The export uses **Investigator Link** to add linked cards to an investigator's
 `deck_requirements` and to set each card's `restrictions` to that investigator's
@@ -67,13 +68,19 @@ generated values for the same field.
 The exporter reserves the nested `back` key. Fields inside `back` apply only
 to the separate back record linked by the generated `back_link`.
 
-For card images to show up in arkham.build, they must be hosted online. Enter an **Image URL pattern** with `{code}` where the card's code goes:
+### Card images
+
+Enter an **Image URL prefix** for the server where you will host the images:
 
 ```
-https://example.com/my-project/{code}.jpg
+https://example.com/cards
 ```
 
-Back images use `{code}_back`. Leave the pattern empty to leave out image links: images are never embedded in the file itself.
+With a prefix set, the export saves images and thumbnails in
+`Export of <project name>/arkham-build/<project ID>/` inside the project folder.
+Upload the project ID folder to that URL. Shoggoth does not upload images for you.
+
+Leave the prefix empty to skip images.
 
 To get your content listed on arkham.build, contact the arkham.build team.
 

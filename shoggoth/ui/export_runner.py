@@ -17,6 +17,7 @@ import json
 import multiprocessing
 import threading
 import traceback
+from concurrent.futures import CancelledError
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -28,7 +29,7 @@ from shoggoth.files import default_export_folder, safe_filename
 from shoggoth.i18n import tr
 from shoggoth.renderer import renderer_for_card
 from shoggoth.settings import EXPORT_SIZES
-from shoggoth.ui.export_widgets import resolve_scope_cards, run_image_export
+from shoggoth.ui.export_widgets import resolve_scope_cards, run_card_export, run_image_export
 
 _MBPRINT_FORMAT, _MBPRINT_QUALITY = 'png', 100
 
@@ -234,15 +235,20 @@ def _run_tts(parent, project, renderer, cards, scope_type, d):
     return tr(key).format(path=path), image_paths, str(path)
 
 
-def _run_arkham_build(project, settings):
+def _run_arkham_build(project, settings, renderer, parent=None):
     """Returns (result_path_str, produced_paths)."""
     from shoggoth import arkham_build
-    # d['export_thumbnails'] is a placeholder for a not-yet-implemented
-    # feature and has no effect yet. arkham.build always exports the whole
-    # project's JSON regardless of the profile's card scope -- the schema
-    # describes the full project, not a card subset.
-    data = arkham_build.export_project(project, settings)
-    output_path = project.folder / f"{project.name}_arkham_build.json"
+    def execute_cards(cards, export_card):
+        cancelled, _ = run_card_export(parent, cards, export_card)
+        if cancelled:
+            raise CancelledError()
+
+    data = arkham_build.export_project(
+        project, settings, renderer, card_executor=execute_cards
+    )
+    output_path = default_export_folder(project) / "arkham-build" / f"{project.id}.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     return str(output_path), [str(output_path)]
@@ -321,10 +327,12 @@ def run_profile(parent, project, renderer, profile_data):
 
         elif kind == 'arkham_build':
             try:
-                path, data_paths = _run_arkham_build(project, settings)
+                path, data_paths = _run_arkham_build(project, settings, renderer, parent)
                 arkham_build_exported = True
                 produced['data'].extend(data_paths)
                 results.append(tr("PE_RESULT_ARKHAM_BUILD").format(path=path))
+            except CancelledError:
+                break
             except Exception as e:
                 errors.append(tr("PE_RESULT_ERROR_ARKHAM_BUILD").format(error=e))
 

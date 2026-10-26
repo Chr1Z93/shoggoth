@@ -19,7 +19,6 @@ def export_card(card):
     front_face = _export_face(card.id, front, front_type)
 
     if back_type in {CARD_BACK_TYPE, UNSUPPORTED_TYPE}:
-        # TODO: Export back_image_url for unsupported backs.
         return [front_face]
 
     if is_double_sided(front_type, back_type):

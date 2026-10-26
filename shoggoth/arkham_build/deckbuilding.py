@@ -16,7 +16,7 @@ def add_deckbuilding_fields(cards, exported_cards):
         if exported is None or exported["type_code"] != "investigator":
             continue
 
-        link = _investigator_link(card) or card.name
+        link = card.get("investigator") or card.name
         investigators.setdefault(link, []).append(card)
 
         signatures[card.id] = []
@@ -26,7 +26,7 @@ def add_deckbuilding_fields(cards, exported_cards):
         if exported is None or exported["type_code"] == "investigator":
             continue
 
-        owners = investigators.get(_investigator_link(card), [])
+        owners = investigators.get(card.get("investigator"), [])
         if not owners:
             continue
 
@@ -51,10 +51,6 @@ def add_deckbuilding_fields(cards, exported_cards):
             by_code[investigator.id]["deck_requirements"] = ", ".join(requirements)
 
 
-def _investigator_link(card):
-    return card.get_meta("investigator", card.get("investigator"))
-
-
 def _plain_text(face, value):
     mapped = map_text(face, "entries", str(value or ""))
     return " ".join(unescape(re.sub(r"<[^>]*>", "", mapped)).split())
@@ -62,7 +58,7 @@ def _plain_text(face, value):
 
 def _deck_size_requirements(face):
     size = []
-    for header, value in face.get("entries", []) or []:
+    for header, value in face.get("entries", []):
         header = _plain_text(face, header).casefold()
 
         if header.rstrip(": ") == "deck size":

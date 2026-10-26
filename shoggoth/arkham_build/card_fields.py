@@ -100,7 +100,7 @@ def _stage(face):
 
 
 def _factions(face):
-    classes = face.get("classes", []) or []
+    classes = face.get("classes", [])
     factions = []
     for faction in classes:
         if (
@@ -125,7 +125,7 @@ def _factions(face):
 
 
 def _subtype(face):
-    classes = face.get("classes", []) or []
+    classes = face.get("classes", [])
     if "basic weakness" in classes:
         return "basicweakness"
     if "weakness" in classes:
@@ -169,7 +169,7 @@ def _text(face):
     if text is not None:
         return text
 
-    entries = face.get("entries", []) or []
+    entries = face.get("entries", [])
     lines = []
     if face.card_type == "investigator":
         for header, value in entries:
@@ -235,7 +235,7 @@ def _deck_limit(face, text):
 
 def _slots(face):
     slots = [
-        slot.strip().lower() for slot in face.get("slots", []) or [] if slot.strip()
+        slot.strip().lower() for slot in face.get("slots", []) if slot.strip()
     ]
     return ". ".join(_SLOT_MAP.get(slot, slot.title()) for slot in slots) or None
 
