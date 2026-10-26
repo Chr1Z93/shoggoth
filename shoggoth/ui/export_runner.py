@@ -368,11 +368,6 @@ def run_profile(parent, project, renderer, profile_data):
     if attempted_kinds:
         telemetry.record_export(attempted_kinds)
 
-    if arkham_build_exported:
-        # The arkham.build team asked for this: their users were reporting
-        # our export's shortcomings to them.
-        QMessageBox.warning(parent, tr("PE_AB_WIP_TITLE"), tr("PE_AB_WIP_NOTICE"))
-
     return results, errors
 
 
