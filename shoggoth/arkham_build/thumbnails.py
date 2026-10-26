@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from PIL import Image
+
 from shoggoth.arkham_build.card_types import UNSUPPORTED_TYPE
 from shoggoth.renderer.card_renderer import CARD_SIZES
 
@@ -27,12 +29,15 @@ _REGIONS = {
 
 
 def extract_thumbnail(image, face, card_type):
-    """Crop a thumbnail from the rendered face without another render."""
+    """Crop and resize a 128 x 128 thumbnail from the rendered face."""
     if card_type == UNSUPPORTED_TYPE:
         size = max(1, round(min(image.size) * 0.8))
         left = (image.width - size) // 2
         top = (image.height - size) // 2
-        return image.crop((left, top, left + size, top + size))
+        return image.resize(
+            (128, 128), Image.Resampling.LANCZOS,
+            box=(left, top, left + size, top + size),
+        )
 
     layout = _layout(face, card_type, image.width > image.height)
     x, y, size = _REGIONS[layout]
@@ -54,7 +59,10 @@ def extract_thumbnail(image, face, card_type):
 
     assert width > 0 and height > 0, "Thumbnail region must fit the rendered image"
 
-    return image.crop((left, top, left + width, top + height))
+    return image.resize(
+        (128, 128), Image.Resampling.LANCZOS,
+        box=(left, top, left + width, top + height),
+    )
 
 
 def _layout(face, card_type, horizontal):
