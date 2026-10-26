@@ -4,16 +4,14 @@ import re
 from shoggoth.arkham_build.text import map_text
 
 
-def add_deckbuilding_fields(cards, exported_cards):
+def add_deckbuilding_fields(cards, records_by_id):
     """Add requirements and restrictions from investigator links and back entries."""
-    by_code = {card["code"]: card for card in exported_cards}
-
     investigators = {}
     signatures = {}
 
     for card in cards:
-        exported = by_code.get(card.id)
-        if exported is None or exported["type_code"] != "investigator":
+        records = records_by_id[card.id]
+        if not records or records[0]["type_code"] != "investigator":
             continue
 
         link = card.get("investigator") or card.name
@@ -22,8 +20,8 @@ def add_deckbuilding_fields(cards, exported_cards):
         signatures[card.id] = []
 
     for card in cards:
-        exported = by_code.get(card.id)
-        if exported is None or exported["type_code"] == "investigator":
+        records = records_by_id[card.id]
+        if not records or records[0]["type_code"] == "investigator":
             continue
 
         owners = investigators.get(card.get("investigator"), [])
@@ -31,11 +29,8 @@ def add_deckbuilding_fields(cards, exported_cards):
             continue
 
         restriction = "investigator:" + ":".join(owner.id for owner in owners)
-        exported["restrictions"] = restriction
-
-        back = by_code.get(exported.get("back_link"))
-        if back is not None:
-            back["restrictions"] = restriction
+        for record in records:
+            record["restrictions"] = restriction
 
         if not card.get_meta("bonded"):
             for owner in owners:
@@ -48,7 +43,9 @@ def add_deckbuilding_fields(cards, exported_cards):
                 + signatures[investigator.id]
                 + ["random:subtype:basicweakness"]
             )
-            by_code[investigator.id]["deck_requirements"] = ", ".join(requirements)
+            records_by_id[investigator.id][0]["deck_requirements"] = ", ".join(
+                requirements
+            )
 
 
 def _plain_text(face, value):

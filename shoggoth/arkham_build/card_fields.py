@@ -1,14 +1,37 @@
 from html import unescape
 import re
 
-from shoggoth.arkham_build.constants import (
-    NUMERICAL_MAP,
-    PER_INVESTIGATOR_MAP,
-    SKILL_MAP,
-)
 from shoggoth.arkham_build.serialization import compact
 from shoggoth.arkham_build.text import map_text
 from shoggoth.card_translations import load_card_translations
+
+
+_NUMERICAL_MAP = {
+    "<dash>": None,
+    "---": None,
+    "X": -2,
+    "<star>": -3,
+    "?": -4,
+}
+
+
+_PER_INVESTIGATOR_MAP = {
+    "clues": ("clues_fixed", False),
+    "doom": ("doom_per_investigator", True),
+    "enemy_evade": ("enemy_evade_per_investigator", True),
+    "enemy_fight": ("enemy_fight_per_investigator", True),
+    "health": ("health_per_investigator", True),
+    "shroud": ("shroud_per_investigator", True),
+}
+
+
+_SKILL_MAP = {
+    "W": "skill_willpower",
+    "I": "skill_intellect",
+    "C": "skill_combat",
+    "A": "skill_agility",
+    "Q": "skill_wild",
+}
 
 
 _ENCOUNTER_TYPES = {
@@ -36,7 +59,9 @@ _SLOT_MAP = {
 # customization_text, customization_options, and customization_change.
 def export_face_fields(face, *, image_mapper=None):
     text = _text(face, image_mapper)
+    keywords = _keywords(text)
     return {
+        **keywords,
         **compact(
             {
                 "name": _name(face, image_mapper),
@@ -44,11 +69,7 @@ def export_face_fields(face, *, image_mapper=None):
                 "subtype_code": _subtype(face),
                 "traits": _optional_text(face, "traits", image_mapper),
                 "text": text,
-                # TODO: Add localized keyword labels to the asset translation catalogs.
-                "permanent": _has_keyword(text, "Permanent"),
-                "exceptional": _has_keyword(text, "Exceptional"),
-                "myriad": _has_keyword(text, "Myriad"),
-                "deck_limit": _deck_limit(face, text),
+                "deck_limit": _deck_limit(face, keywords.get("exceptional", False)),
                 "is_unique": _is_unique(face),
                 "illustrator": _optional_text(face, "illustrator", image_mapper),
                 "flavor": _optional_text(face, "flavor_text", image_mapper),
@@ -207,9 +228,10 @@ def _chaos_entry(entry):
     return f"{label}: {text}".strip() if label else text.strip()
 
 
-def _has_keyword(text, keyword):
+def _keywords(text):
+    # TODO: Add localized keyword labels to the asset translation catalogs.
     if text is None:
-        return None
+        return {}
     text = re.sub(
         r"<(?:br|hr)\b[^>]*>|</(?:p|div|blockquote)>",
         "\n",
@@ -218,10 +240,14 @@ def _has_keyword(text, keyword):
     )
     text = unescape(re.sub(r"<[^>]*>", "", text))
     first_line = text.split("\n", 1)[0]
-    return f"{keyword}." in first_line or None
+    return {
+        keyword.lower(): True
+        for keyword in ("Permanent", "Exceptional", "Myriad")
+        if f"{keyword}." in first_line
+    }
 
 
-def _deck_limit(face, text):
+def _deck_limit(face, is_exceptional):
     card = face.card
     if card.back.card_type == "encounter":
         return None
@@ -232,7 +258,7 @@ def _deck_limit(face, text):
         "investigator",
     }.intersection(card.card_types):
         return None
-    return 1 if _has_keyword(text, "Exceptional") else card.amount
+    return 1 if is_exceptional else card.amount
 
 
 def _slots(face):
@@ -245,7 +271,7 @@ def _skills(face):
     skills = {}
 
     for icon in face.get("icons", ""):
-        key = SKILL_MAP.get(icon)
+        key = _SKILL_MAP.get(icon)
         if key and (not is_investigator or key == "skill_wild"):
             skills[key] = skills.get(key, 0) + 1
 
@@ -304,8 +330,8 @@ def _numeric_field(face, key, *, target=None):
     field = target or key
     values = {field: value}
 
-    if field in PER_INVESTIGATOR_MAP:
-        mapping_key, mapping_criteria = PER_INVESTIGATOR_MAP[field]
+    if field in _PER_INVESTIGATOR_MAP:
+        mapping_key, mapping_criteria = _PER_INVESTIGATOR_MAP[field]
         if per_investigator == mapping_criteria:
             values[mapping_key] = True
 
@@ -320,8 +346,8 @@ def _parse_numeric_value(raw_value):
     per_investigator = text.endswith("<per>")
     text = text.removesuffix("<per>").strip()
 
-    if text in NUMERICAL_MAP:
-        return NUMERICAL_MAP[text], per_investigator
+    if text in _NUMERICAL_MAP:
+        return _NUMERICAL_MAP[text], per_investigator
 
     try:
         return int(text), per_investigator

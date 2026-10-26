@@ -1,14 +1,13 @@
 from pathlib import Path
 
-from shoggoth.arkham_build.constants import (
-    CARD_BACK_TYPE,
-    INDETERMINATE_TYPE,
-    UNSUPPORTED_TYPE,
-)
+
+UNSUPPORTED_TYPE = (None, False)
+CARD_BACK_TYPE = (None, True)
+_INDETERMINATE_TYPE = "indeterminate"
 
 
 _TYPE_MAP = {
-    "act_agenda_full": INDETERMINATE_TYPE,
+    "act_agenda_full": _INDETERMINATE_TYPE,
     "chaos": "scenario",
 }
 
@@ -27,7 +26,7 @@ _SUPPORTED_TYPES = {
     "skill",
     "story",
     "treachery",
-    INDETERMINATE_TYPE,
+    _INDETERMINATE_TYPE,
 }
 
 
@@ -75,7 +74,7 @@ def _card_type(card_face):
     is_backside = template.endswith("_back")
 
     if {"act", "agenda"}.issubset(roles):
-        return INDETERMINATE_TYPE, is_backside
+        return _INDETERMINATE_TYPE, is_backside
 
     if {"enemy", "location"}.issubset(roles):
         return "enemy_location", is_backside
@@ -93,7 +92,7 @@ def _card_type(card_face):
 def _resolve_indeterminate_type(card_type, other_type):
     """Some card types can only be resolved via the other card side."""
     type_code, is_backside = card_type
-    if type_code != INDETERMINATE_TYPE:
+    if type_code != _INDETERMINATE_TYPE:
         return card_type
 
     other_type_code, _ = other_type

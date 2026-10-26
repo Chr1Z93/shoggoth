@@ -1,17 +1,12 @@
 import datetime
-import logging
 
 from shoggoth.arkham_build.assets import ImageAssetExporter
-from shoggoth.arkham_build.cards import export_card
-from shoggoth.arkham_build.constants import BuildMetaProjectStatus
+from shoggoth.arkham_build.cards import apply_card_metadata, export_card
 from shoggoth.arkham_build.deckbuilding import add_deckbuilding_fields
 from shoggoth.arkham_build.images import export_card_images
 from shoggoth.arkham_build.serialization import compact
 from shoggoth.card import Card
 from shoggoth.updater import get_current_version as shoggoth_version
-
-
-logger = logging.getLogger(__name__)
 
 
 # FIXME: `meta.banner_credit` is missing in UI
@@ -28,8 +23,8 @@ def export_project(project, settings, renderer, *, card_executor):
     return {
         "meta": _project_meta(data),
         "data": {
-            "cards": list(
-                _export_cards(project, url_prefix, renderer, card_executor, assets)
+            "cards": _export_cards(
+                project, url_prefix, renderer, card_executor, assets
             ),
             "packs": [_export_group(data, assets)],
             "encounter_sets": [
@@ -46,89 +41,30 @@ def _export_group(data, assets):
         "name": data["name"],
         **compact(
             {
-                "icon_url": assets.export(data.get("icon"), resource_id=data["id"]),
+                "icon_url": assets.export(data.get("icon")),
             }
         ),
     }
 
 
 def _export_cards(project, url_prefix, renderer, card_executor, assets):
-    project_language = project.language or "en"
-
     cards = [Card(data, project) for data in project.data["cards"]]
-    exported_cards = []
+    records_by_id = {
+        card.id: export_card(card, image_mapper=assets.map_tag) for card in cards
+    }
 
-    image_jobs = []
+    def export_images(card):
+        export_card_images(card, records_by_id[card.id], url_prefix, renderer)
 
+    image_cards = [card for card in cards if url_prefix and records_by_id[card.id]]
+    if image_cards:
+        card_executor(image_cards, export_images)
+
+    add_deckbuilding_fields(cards, records_by_id)
     for card in cards:
-        language = card.effective_language or "en"
+        apply_card_metadata(card, records_by_id[card.id])
 
-        if language != project_language:
-            logger.warning(
-                "Card language differs from project export language",
-                extra={
-                    "project_id": project.id,
-                    "card_id": card.id,
-                    "language": language,
-                    "project_language": project_language,
-                },
-            )
-
-        records = export_card(card, image_mapper=assets.map_tag)
-        if url_prefix and records:
-            image_jobs.append((card, records))
-
-        exported_cards.extend(records)
-
-    if image_jobs:
-        records_by_id = {card.id: records for card, records in image_jobs}
-
-        def export_images(card):
-            export_card_images(card, records_by_id[card.id], url_prefix, renderer)
-
-        card_executor([card for card, _ in image_jobs], export_images)
-
-    add_deckbuilding_fields(cards, exported_cards)
-    _apply_card_metadata(cards, exported_cards)
-
-    yield from exported_cards
-
-
-def _apply_card_metadata(cards, exported_cards):
-    """Apply explicit metadata to primary and separate back export records."""
-    by_code = {card["code"]: card for card in exported_cards}
-    for card in cards:
-        exported = by_code.get(card.id)
-        metadata = card.get_meta("arkham_build")
-        if exported is None or metadata is None:
-            continue
-
-        if not isinstance(metadata, dict):
-            logger.warning(
-                "Card arkham.build metadata must be a JSON object",
-                extra={"project_id": card.project.id, "card_id": card.id},
-            )
-            continue
-
-        back = by_code.get(exported.get("back_link"))
-
-        primary_metadata = dict(metadata)
-
-        back_metadata = primary_metadata.pop("back", None)
-        exported.update(primary_metadata)
-
-        if back_metadata is None:
-            continue
-
-        if not isinstance(back_metadata, dict):
-            logger.warning(
-                "Card arkham.build back metadata must be a JSON object",
-                extra={"project_id": card.project.id, "card_id": card.id},
-            )
-            continue
-
-        if back is not None:
-            back.update(back_metadata)
+    return [record for records in records_by_id.values() for record in records]
 
 
 def _project_meta(data):
@@ -144,13 +80,12 @@ def _project_meta(data):
         "name": data["name"],
         **compact(
             {
-                "author": meta.get("author"),
                 "banner_url": meta.get("banner_url"),
                 "description": meta.get("description"),
                 "external_link": meta.get("website_url"),
                 "status": meta.get("status")
-                if meta.get("status") in BuildMetaProjectStatus
-                else None,
+                if meta.get("status") in {"draft", "alpha", "beta", "complete", "final"}
+                else "draft",
                 "tags": meta.get("tags"),
             }
         ),

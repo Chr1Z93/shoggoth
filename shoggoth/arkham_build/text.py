@@ -1,13 +1,7 @@
-from dataclasses import dataclass
 import re
 
 from shoggoth.card import Card
 from shoggoth.card_translations import CARD_KEYWORD_DEFAULTS, load_card_translations
-
-
-@dataclass(frozen=True)
-class _LocalizedTag:
-    key: str
 
 
 _VALUE_MAP = {
@@ -32,34 +26,39 @@ _ICON_SPAN_PATTERN = r"<icon>[\s\S]*?</icon>"
 _TAG_PATTERN = re.compile(
     _ICON_SPAN_PATTERN + r"""|<(?:[^<>"']|"[^"]*"|'[^']*')*>""", re.IGNORECASE
 )
-TAG_REMOVALS = [
-    _ICON_SPAN_PATTERN,
-    "<icon>",
-    "</icon>",
-    "<unique>",
-    "<center>",
-    "</center>",
-    "<left>",
-    "</left>",
-    "<right>",
-    "</right>",
-    r"<size\s+\d+>",
-    "</size>",
-    r'<font\s+"[^"\n]+">',
-    "</font>",
-    r"<indent\s+\d+>",
-    "</indent>",
-    r"<margin\s+\d+(?:\s+\d+)*>",
-    r"<spacing\s+(?:\d+(?:\.\d*)?|\.\d+)>",
-    "<valign>",
-    r"<image(?:\s+[^>]*)?>",
-    # TODO: Add glyphs to the arkham.build icon font.
-    "<resource>",
-    "<clues>",
-    "<doom>",
-    "<entry>",
-    "<open>",
-]
+_TAG_REMOVALS = re.compile(
+    "|".join(
+        (
+            _ICON_SPAN_PATTERN,
+            "<icon>",
+            "</icon>",
+            "<unique>",
+            "<center>",
+            "</center>",
+            "<left>",
+            "</left>",
+            "<right>",
+            "</right>",
+            r"<size\s+\d+>",
+            "</size>",
+            r'<font\s+"[^"\n]+">',
+            "</font>",
+            r"<indent\s+\d+>",
+            "</indent>",
+            r"<margin\s+\d+(?:\s+\d+)*>",
+            r"<spacing\s+(?:\d+(?:\.\d*)?|\.\d+)>",
+            "<valign>",
+            r"<image(?:\s+[^>]*)?>",
+            # TODO: Add glyphs to the arkham.build icon font.
+            "<resource>",
+            "<clues>",
+            "<doom>",
+            "<entry>",
+            "<open>",
+        )
+    ),
+    re.IGNORECASE,
+)
 _TAG_MAP = {
     "<bi>": "<b><i>",
     "</bi>": "</i></b>",
@@ -117,7 +116,6 @@ _TAG_MAP = {
     "<sign_3>": "[seal_c]",
     "<sign_4>": "[seal_d]",
     "<sign_5>": "[seal_e]",
-    **{tag: _LocalizedTag(tag) for tag in CARD_KEYWORD_DEFAULTS},
 }
 
 _TEXT_MAP = {
@@ -133,8 +131,9 @@ _TEXT_PATTERN = re.compile(
 )
 
 
-def expand_icon_tags(value, face):
+def _expand_icon_tags(value, face):
     """Expand project and encounter icon aliases into inline image tags."""
+
     def replace(match):
         kind = match[1].lower()
         project = face.card.project
@@ -157,7 +156,7 @@ def expand_icon_tags(value, face):
 def map_text(face, field, value, *, tag_map=None, image_mapper=None):
     mapper = _TextMapper(tag_map, image_mapper)
 
-    # Shoggoth supports references like <copy> or <name> and translations, resolve before mapping
+    # Resolve references and translations before mapping tags.
     resolved_text = mapper.resolve_values(face, field, value)
 
     return _replace_plain_text(mapper.map_tags(face, resolved_text))
@@ -251,7 +250,7 @@ class _TextMapper:
         if key in self._tag_overrides:
             return self._tag_overrides[key]
 
-        expanded = expand_icon_tags(tag, face)
+        expanded = _expand_icon_tags(tag, face)
         if expanded != tag:
             return self.map_tags(face, expanded, keyword_path)
 
@@ -260,15 +259,13 @@ class _TextMapper:
             if image is not None:
                 return image
 
-        if any(re.fullmatch(pattern, tag, re.IGNORECASE) for pattern in TAG_REMOVALS):
+        if _TAG_REMOVALS.fullmatch(tag):
             return ""
 
-        replacement = _TAG_MAP.get(key, tag)
+        if key in CARD_KEYWORD_DEFAULTS:
+            return self._expand_keyword(face, key, keyword_path)
 
-        if isinstance(replacement, _LocalizedTag):
-            return self._expand_keyword(face, replacement.key, keyword_path)
-
-        return replacement
+        return _TAG_MAP.get(key, tag)
 
     def _expand_keyword(self, face, key, keyword_path):
         if key in keyword_path:

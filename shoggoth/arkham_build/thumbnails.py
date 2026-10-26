@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from shoggoth.arkham_build.constants import UNSUPPORTED_TYPE
+from shoggoth.arkham_build.card_types import UNSUPPORTED_TYPE
 from shoggoth.renderer.card_renderer import CARD_SIZES
 
 

@@ -1,9 +1,9 @@
 from shoggoth.arkham_build.card_fields import export_face_fields
-from shoggoth.arkham_build.card_types import is_double_sided, resolve_card_types
-from shoggoth.arkham_build.constants import (
+from shoggoth.arkham_build.card_types import (
     CARD_BACK_TYPE,
-    INDETERMINATE_TYPE,
     UNSUPPORTED_TYPE,
+    is_double_sided,
+    resolve_card_types,
 )
 
 
@@ -49,9 +49,21 @@ def export_card(card, *, image_mapper=None):
     return [front_face, back_face]
 
 
+def apply_card_metadata(card, records):
+    """Apply explicit metadata after generated fields, without changing the source."""
+    metadata = card.get_meta("arkham_build")
+    if not records or not isinstance(metadata, dict):
+        return
+
+    records[0].update({key: value for key, value in metadata.items() if key != "back"})
+    back_metadata = metadata.get("back")
+    if len(records) == 2 and isinstance(back_metadata, dict):
+        records[1].update(back_metadata)
+
+
 def _export_face(code, face, card_type, image_mapper):
     type_code, _ = card_type
-    assert type_code not in {None, INDETERMINATE_TYPE}
+    assert type_code is not None
 
     return {
         "code": code,

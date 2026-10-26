@@ -1,6 +1,5 @@
 import hashlib
 from html import escape
-import logging
 import re
 import shutil
 from urllib.parse import quote
@@ -8,8 +7,6 @@ from urllib.parse import quote
 from shoggoth.files import default_export_folder, overlay_dir
 from shoggoth.renderer.richtext.tags import parse_tag_attributes
 
-
-logger = logging.getLogger(__name__)
 
 _IMAGE_TAG_PATTERN = re.compile(r"<image(?=\s|>)", re.IGNORECASE)
 
@@ -22,7 +19,7 @@ class ImageAssetExporter:
         self.url_prefix = url_prefix
         self._urls_by_path = {}
 
-    def export(self, source, *, resource_id):
+    def export(self, source):
         if not self.url_prefix or not source:
             return None
 
@@ -31,14 +28,6 @@ class ImageAssetExporter:
             path = overlay_dir / source
 
         if not path.is_file():
-            logger.warning(
-                "Export image file not found",
-                extra={
-                    "project_id": self.project.id,
-                    "resource_id": resource_id,
-                    "image_path": str(source),
-                },
-            )
             return None
 
         path = path.resolve()
@@ -76,7 +65,7 @@ class ImageAssetExporter:
         }
         source = attributes.get("src")
 
-        url = self.export(source, resource_id=face.card.id)
+        url = self.export(source)
         if url is None:
             return ""
 

@@ -288,7 +288,6 @@ def run_profile(parent, project, renderer, profile_data):
     card_faces = {}  # {card.id: {'front', 'back'}}, for the card manifest
     tts_result = None  # {'image_paths', 'wrapper_path', 'sync'} from the most recent TTS entry this window
     attempted_kinds = set()  # actual export kinds run this call, for telemetry ('publish' excluded)
-    arkham_build_exported = False
 
     for raw_entry in profile_data.get('entries', []):
         entry = ExportEntry(raw_entry, project)
@@ -328,7 +327,6 @@ def run_profile(parent, project, renderer, profile_data):
         elif kind == 'arkham_build':
             try:
                 path, data_paths = _run_arkham_build(project, settings, renderer, parent)
-                arkham_build_exported = True
                 produced['data'].extend(data_paths)
                 results.append(tr("PE_RESULT_ARKHAM_BUILD").format(path=path))
             except CancelledError:
