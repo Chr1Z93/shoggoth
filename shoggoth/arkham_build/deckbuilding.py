@@ -1,13 +1,24 @@
+from collections.abc import Mapping, Sequence
 from html import unescape
 import re
+from typing import Required, TypedDict
 
 from shoggoth.arkham_build.text import map_text
+from shoggoth.card import Card, Face
 
 
-def add_deckbuilding_fields(cards, records_by_id):
-    """Add requirements and restrictions from investigator links and back entries."""
-    investigators = {}
-    signatures = {}
+class DeckbuildingRecord(TypedDict, total=False):
+    type_code: Required[str]
+    restrictions: str
+    deck_requirements: str
+
+
+def add_deckbuilding_fields(
+    cards: Sequence[Card],
+    records_by_id: Mapping[str, Sequence[DeckbuildingRecord]],
+) -> None:
+    investigators: dict[str, list[Card]] = {}
+    signatures: dict[str, list[str]] = {}
 
     for card in cards:
         records = records_by_id[card.id]
@@ -48,14 +59,14 @@ def add_deckbuilding_fields(cards, records_by_id):
             )
 
 
-def _plain_text(face, value):
+def _plain_text(face: Face, value: object) -> str:
     mapped = map_text(face, "entries", str(value or ""))
     return " ".join(unescape(re.sub(r"<[^>]*>", "", mapped)).split())
 
 
-def _deck_size_requirements(face):
+def _deck_size_requirements(face: Face) -> list[str]:
     """The size requirement from the last valid "Deck Size" entry, if any."""
-    # TODO: Match localized "Deck Size" labels.
+    # TODO: support localized "Deck Size" labels.
     requirements = []
     for header, value in face.get("entries", []):
         if _plain_text(face, header).casefold().rstrip(": ") != "deck size":

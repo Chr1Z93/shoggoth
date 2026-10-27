@@ -1,11 +1,18 @@
+from collections.abc import Mapping
 from html import unescape
 import re
+from typing import TypedDict
 
-from shoggoth.arkham_build.text import map_text, resolve_text
+from shoggoth.arkham_build.text import ImageMapper, map_text, resolve_text
+from shoggoth.card import Face
 from shoggoth.card_translations import load_card_translations
 
 
-_NUMERICAL_MAP = {
+# Numeric fields and their per-investigator flags.
+type NumericFields = dict[str, int | bool | None]
+
+
+_NUMERICAL_MAP: dict[str, int | None] = {
     "<dash>": None,
     "---": None,
     "X": -2,
@@ -64,14 +71,23 @@ _CHAOS_TOKEN_ICONS = {
 }
 
 
+type _ChaosToken = str | int | None
+
+
+class _ChaosEntry(TypedDict, total=False):
+    """A row of a chaos or scenario reference card's token list."""
+
+    token: _ChaosToken | list[_ChaosToken]
+    text: str | None
+
+
 _SLOT_MAP = {
     "hands": "Hand x2",
     "arcanes": "Arcane x2",
 }
 
 
-def compact(values):
-    """Drop fields without a value."""
+def compact[V](values: Mapping[str, V | None]) -> dict[str, V]:
     return {key: value for key, value in values.items() if value is not None}
 
 
@@ -79,7 +95,9 @@ def compact(values):
 # TODO: add programmatic deck_options parser.
 # TODO: Link customization cards to their parent cards and export
 # customization_text, customization_options, and customization_change.
-def export_face_fields(face, *, image_mapper=None):
+def export_face_fields(
+    face: Face, *, image_mapper: ImageMapper | None = None
+) -> dict[str, object]:
     text = _text(face, image_mapper)
     keywords = _keywords(text)
     return {
@@ -125,31 +143,31 @@ def export_face_fields(face, *, image_mapper=None):
     }
 
 
-def _parse_position(value):
+def _parse_position(value: int | str | None) -> int | None:
     match = re.match(r"\d+", str(value).strip())
     return int(match[0]) if match else None
 
 
-def _encounter_position(face):
+def _encounter_position(face: Face) -> int | None:
     if not face.card.get("encounter_set"):
         return None
     return _parse_position(face.card.get("encounter_number"))
 
 
-def _stage(face):
+def _stage(face: Face) -> int | None:
     if not {"act", "agenda"}.intersection(face.card_types):
         return None
     return _parse_position(face.get("index", None))
 
 
-def _factions(face):
+def _factions(face: Face) -> dict[str, str]:
     classes = face.get("classes", [])
     factions = list(dict.fromkeys(c for c in classes if c in _FACTIONS))
     factions = factions or [_default_faction(face)]
     return dict(zip(("faction_code", "faction2_code", "faction3_code"), factions))
 
 
-def _subtype(face):
+def _subtype(face: Face) -> str | None:
     classes = face.get("classes", [])
     if "basic weakness" in classes:
         return "basicweakness"
@@ -158,7 +176,7 @@ def _subtype(face):
     return None
 
 
-def _default_faction(face):
+def _default_faction(face: Face) -> str:
     card = face.card
     if card.get("encounter_set") and (
         _ENCOUNTER_ROLES.intersection(card.card_types)
@@ -168,27 +186,29 @@ def _default_faction(face):
     return "neutral"
 
 
-def _raw_name(face):
+def _raw_name(face: Face) -> str:
     return face.get("name") or face.card.name
 
 
-def _name(face, image_mapper):
+def _name(face: Face, image_mapper: ImageMapper | None) -> str:
     return map_text(face, "name", _raw_name(face), image_mapper=image_mapper).strip()
 
 
-def _is_unique(face):
+def _is_unique(face: Face) -> bool | None:
     name = resolve_text(face, "name", _raw_name(face))
     return "<unique>" in name.lower() or None
 
 
-def _optional_text(face, field, image_mapper=None):
+def _optional_text(
+    face: Face, field: str, image_mapper: ImageMapper | None = None
+) -> str | None:
     value = face.get(field, None)
     if value is None:
         return None
     return map_text(face, field, value, image_mapper=image_mapper).strip() or None
 
 
-def _text(face, image_mapper):
+def _text(face: Face, image_mapper: ImageMapper | None) -> str | None:
     text = _optional_text(face, "text", image_mapper)
     if text is not None:
         return text
@@ -203,6 +223,7 @@ def _text(face, image_mapper):
         difficulty = face.get("difficulty", None)
         if difficulty:
             lines.append(difficulty)
+
         lines.extend(_chaos_entry(entry) for entry in entries)
     else:
         return None
@@ -211,7 +232,7 @@ def _text(face, image_mapper):
     return map_text(face, "text", text, image_mapper=image_mapper).strip() or None
 
 
-def _chaos_entry(entry):
+def _chaos_entry(entry: _ChaosEntry) -> str:
     tokens = entry.get("token", [])
     if not isinstance(tokens, list):
         tokens = [tokens]
@@ -229,11 +250,11 @@ def _chaos_entry(entry):
     return f"{label}: {text}".strip() if label else text.strip()
 
 
-def _collapse_tags(text):
+def _collapse_tags(text: str) -> str:
     return " ".join(re.sub(r"<[^>]*>", "", text).split())
 
 
-def _keywords(text):
+def _keywords(text: str | None) -> dict[str, bool]:
     # TODO: Add localized keyword labels to the asset translation catalogs.
     if text is None:
         return {}
@@ -252,7 +273,7 @@ def _keywords(text):
     }
 
 
-def _deck_limit(face, is_exceptional):
+def _deck_limit(face: Face, is_exceptional: bool) -> int | None:
     card = face.card
     if card.back.card_type == "encounter":
         return None
@@ -266,20 +287,21 @@ def _deck_limit(face, is_exceptional):
     return 1 if is_exceptional else card.amount
 
 
-def _slots(face):
+def _slots(face: Face) -> str | None:
     slots = [slot.strip().lower() for slot in face.get("slots", []) if slot.strip()]
     return ". ".join(_SLOT_MAP.get(slot, slot.title()) for slot in slots) or None
 
 
-def _skills(face):
+def _skills(face: Face) -> NumericFields:
     is_investigator = face.card_type == "investigator"
-    skills = {}
+    icon_counts: dict[str, int] = {}
 
     for icon in face.get("icons", ""):
         key = _SKILL_MAP.get(icon)
         if key and (not is_investigator or key == "skill_wild"):
-            skills[key] = skills.get(key, 0) + 1
+            icon_counts[key] = icon_counts.get(key, 0) + 1
 
+    skills: NumericFields = {**icon_counts}
     if is_investigator:
         for skill in ("willpower", "intellect", "combat", "agility"):
             skills.update(_numeric_field(face, skill, target=f"skill_{skill}"))
@@ -287,7 +309,7 @@ def _skills(face):
     return skills
 
 
-def _victory(face):
+def _victory(face: Face) -> NumericFields:
     values = _numeric_field(face, "victory")
     if values:
         return values
@@ -310,7 +332,9 @@ def _victory(face):
     )
 
 
-def _labeled_points(text, label, field, translations):
+def _labeled_points(
+    text: str, label: str, field: str, translations: Mapping[str, str]
+) -> int | None:
     """Parse e.g. "Victory 2." using the English or translated label."""
     templates = (
         f"{label} {{input}}",
@@ -327,20 +351,20 @@ def _labeled_points(text, label, field, translations):
     return None
 
 
-def _xp(face):
+def _xp(face: Face) -> NumericFields:
     if face.get("level") in {"None", "Custom"}:
         return {"xp": None}
     return _numeric_field(face, "level", target="xp")
 
 
-def _numeric_field(face, key, *, target=None):
+def _numeric_field(face: Face, key: str, *, target: str | None = None) -> NumericFields:
     parsed = _parse_numeric_value(face.get(key))
     if parsed is None:
         return {}
 
     value, per_investigator = parsed
     field = target or key
-    values = {field: value}
+    values: NumericFields = {field: value}
 
     flag, flag_when = _PER_INVESTIGATOR_MAP.get(field, (None, None))
     if flag and value is not None and per_investigator == flag_when:
@@ -349,7 +373,7 @@ def _numeric_field(face, key, *, target=None):
     return values
 
 
-def _parse_numeric_value(raw_value):
+def _parse_numeric_value(raw_value: object) -> tuple[int | None, bool] | None:
     if raw_value is None:
         return None
 

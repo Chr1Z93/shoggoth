@@ -1,12 +1,31 @@
+from collections.abc import Callable, Mapping
 import datetime
+from typing import Any, NotRequired, TypedDict
 
 from shoggoth.arkham_build.assets import ImageAssetExporter
 from shoggoth.arkham_build.card_fields import compact
-from shoggoth.arkham_build.cards import apply_card_metadata, export_card
+from shoggoth.arkham_build.cards import ImageTarget, apply_card_metadata, export_card
 from shoggoth.arkham_build.deckbuilding import add_deckbuilding_fields
 from shoggoth.arkham_build.images import export_card_images
 from shoggoth.card import Card
+from shoggoth.project import Project
+from shoggoth.renderer.card_renderer import CardRenderer
 from shoggoth.updater import get_current_version as shoggoth_version
+
+
+type CardExecutor = Callable[[list[Card], Callable[[Card], None]], None]
+
+
+class _GroupData(TypedDict):
+    id: str
+    name: str
+    icon: NotRequired[str]
+
+
+class _ExportedGroup(TypedDict):
+    code: str
+    name: str
+    icon_url: NotRequired[str]
 
 
 _STATUSES = {"draft", "alpha", "beta", "complete", "final"}
@@ -15,7 +34,13 @@ _STATUSES = {"draft", "alpha", "beta", "complete", "final"}
 # FIXME: `meta.banner_credit` is missing in UI
 # FIXME: `meta.types` is missing in UI
 # FIXME: `meta.url` could be derived for Celeano cloud projects
-def export_project(project, settings, renderer, *, card_executor):
+def export_project(
+    project: Project,
+    settings: Mapping[str, Any],
+    renderer: CardRenderer,
+    *,
+    card_executor: CardExecutor,
+) -> dict[str, object]:
     assert renderer is not None, "A configured renderer is required"
     assert callable(card_executor), "A card executor is required"
 
@@ -38,24 +63,32 @@ def export_project(project, settings, renderer, *, card_executor):
     }
 
 
-def _export_group(data, assets):
-    return {
-        "code": data["id"],
-        "name": data["name"],
-        **compact({"icon_url": assets.export(data.get("icon"))}),
-    }
+def _export_group(data: _GroupData, assets: ImageAssetExporter) -> _ExportedGroup:
+    group: _ExportedGroup = {"code": data["id"], "name": data["name"]}
+
+    icon_url = assets.export(data.get("icon"))
+    if icon_url is not None:
+        group["icon_url"] = icon_url
+
+    return group
 
 
-def _export_cards(project, url_prefix, renderer, card_executor, assets):
+def _export_cards(
+    project: Project,
+    url_prefix: str,
+    renderer: CardRenderer,
+    card_executor: CardExecutor,
+    assets: ImageAssetExporter,
+) -> list[dict[str, object]]:
     cards = [Card(data, project) for data in project.data["cards"]]
     records_by_id = {}
-    targets_by_id = {}
+    targets_by_id: dict[str, list[ImageTarget]] = {}
     for card in cards:
         records_by_id[card.id], targets_by_id[card.id] = export_card(
             card, image_mapper=assets.map_tag
         )
 
-    def export_images(card):
+    def export_images(card: Card) -> None:
         export_card_images(card, targets_by_id[card.id], url_prefix, renderer)
 
     image_cards = [card for card in cards if url_prefix and targets_by_id[card.id]]
@@ -69,7 +102,7 @@ def _export_cards(project, url_prefix, renderer, card_executor, assets):
     return [record for records in records_by_id.values() for record in records]
 
 
-def _project_meta(data):
+def _project_meta(data: Mapping[str, Any]) -> dict[str, object]:
     meta = data.get("meta", {})
     language = meta.get("language") or "en"
     status = meta.get("status")

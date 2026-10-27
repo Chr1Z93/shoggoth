@@ -1,10 +1,18 @@
+from collections.abc import Callable
 import re
 
-from shoggoth.card import Card
+from shoggoth.card import Card, Face
 from shoggoth.card_translations import CARD_KEYWORD_DEFAULTS, load_card_translations
 
 
-_VALUE_MAP = {
+# Maps an <image> tag to HTML.
+type ImageMapper = Callable[[str], str | None]
+
+# The card, face data, field, and raw value of a text reference being resolved.
+type _ReferenceKey = tuple[str, int, str, str]
+
+
+_VALUE_MAP: dict[str, Callable[[Face], int | str | None]] = {
     "<exn>": lambda face: face.card.project_number,
     "<esn>": lambda face: face.card.encounter_number,
     "<est>": lambda face: getattr(face.card.encounter, "total_cards", None),
@@ -132,10 +140,10 @@ _TEXT_PATTERN = re.compile(
 )
 
 
-def _icon_image(face, match):
-    """Expand a project or encounter icon alias into an inline image tag."""
+def _icon_image(face: Face, match: re.Match[str]) -> str:
     kind = match[1].lower()
     project = face.card.project
+
     if kind in {"exi", "project.icon"}:
         source = project.icon
     else:
@@ -150,32 +158,36 @@ def _icon_image(face, match):
     return f'<image src="{source}"{attributes}>'
 
 
-def map_text(face, field, value, *, image_mapper=None):
+def map_text(
+    face: Face, field: str, value: str, *, image_mapper: ImageMapper | None = None
+) -> str:
     mapper = _TextMapper(image_mapper)
-
-    # Resolve references and translations before mapping tags.
     resolved_text = mapper.resolve_values(face, field, value)
-
     return _replace_plain_text(mapper.map_tags(face, resolved_text))
 
 
-def resolve_text(face, field, value):
-    """Resolve references and translations, keeping all tags."""
+def resolve_text(face: Face, field: str, value: str) -> str:
     return _TextMapper(None).resolve_values(face, field, value)
 
 
-def _replace_plain_text(value):
+def _replace_plain_text(value: str) -> str:
     return _TEXT_PATTERN.sub(
         lambda match: _TEXT_MAP.get(match.group(0), match.group(0)), value
     )
 
 
 class _TextMapper:
-    def __init__(self, image_mapper):
+    def __init__(self, image_mapper: ImageMapper | None) -> None:
         self._image_mapper = image_mapper
 
-    def resolve_values(self, face, field, value, reference_path=frozenset()):
-        reference_key = (face.card.id, id(face.data), field, value)
+    def resolve_values(
+        self,
+        face: Face,
+        field: str,
+        value: str,
+        reference_path: frozenset[_ReferenceKey] = frozenset(),
+    ) -> str:
+        reference_key: _ReferenceKey = (face.card.id, id(face.data), field, value)
 
         if reference_key in reference_path:
             raise ValueError(
@@ -190,7 +202,13 @@ class _TextMapper:
 
         return self._translate_asset_keys(face, resolved_text)
 
-    def _resolve_value(self, face, field, match, reference_path):
+    def _resolve_value(
+        self,
+        face: Face,
+        field: str,
+        match: re.Match[str],
+        reference_path: frozenset[_ReferenceKey],
+    ) -> str:
         tag = match.group(0).lower()
 
         if tag in _VALUE_MAP:
@@ -208,14 +226,20 @@ class _TextMapper:
 
         return self._resolve_reference(face, match, reference_path)
 
-    def _resolve_reference(self, face, match, reference_path):
+    def _resolve_reference(
+        self,
+        face: Face,
+        match: re.Match[str],
+        reference_path: frozenset[_ReferenceKey],
+    ) -> str:
         element_id = match.group("element_id") or face.card.id
 
         element = face.card.project.get_by_id(element_id)
         if element is None:
             raise ValueError(f"Unknown text reference: {match.group(0)}")
 
-        referenced_value = element.data
+        referenced_value: object = element.data
+
         field_path = match.group("field").strip().split(".")
         for part in field_path:
             if not isinstance(referenced_value, dict) or part not in referenced_value:
@@ -233,12 +257,14 @@ class _TextMapper:
             referenced_face, field_path[-1], str(referenced_value), reference_path
         )
 
-    def map_tags(self, face, value, keyword_path=frozenset()):
+    def map_tags(
+        self, face: Face, value: str, keyword_path: frozenset[str] = frozenset()
+    ) -> str:
         return _TAG_PATTERN.sub(
             lambda match: self._map_tag(face, match.group(0), keyword_path), value
         )
 
-    def _map_tag(self, face, tag, keyword_path):
+    def _map_tag(self, face: Face, tag: str, keyword_path: frozenset[str]) -> str:
         key = tag.lower()
 
         icon = _ICON_TAG_PATTERN.fullmatch(tag)
@@ -258,7 +284,9 @@ class _TextMapper:
 
         return _TAG_MAP.get(key, tag)
 
-    def _expand_keyword(self, face, key, keyword_path):
+    def _expand_keyword(
+        self, face: Face, key: str, keyword_path: frozenset[str]
+    ) -> str:
         if key in keyword_path:
             raise ValueError(f"Circular keyword translation: {key}")
 
@@ -267,7 +295,7 @@ class _TextMapper:
 
         return self.map_tags(face, translated_text, keyword_path | {key})
 
-    def _translate_asset_keys(self, face, value):
+    def _translate_asset_keys(self, face: Face, value: str) -> str:
         if "%:" not in value:
             return value
 

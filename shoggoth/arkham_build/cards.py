@@ -1,12 +1,14 @@
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from shoggoth.arkham_build.card_fields import export_face_fields
 from shoggoth.arkham_build.card_types import (
     CARD_BACK_TYPE,
     UNSUPPORTED_TYPE,
+    ResolvedCardType,
     is_double_sided,
     resolve_card_types,
 )
+from shoggoth.card import Face
 
 
 _BACK_FIELDS = {"name", "subname", "traits", "text", "flavor", "illustrator"}
@@ -15,11 +17,11 @@ _BACK_FIELDS = {"name", "subname", "traits", "text", "flavor", "illustrator"}
 class ImageTarget(NamedTuple):
     """A face to render and the record that receives its image URLs."""
 
-    face: object
-    record: dict
+    face: Face
+    record: dict[str, Any]
     field_prefix: str
     file_suffix: str
-    card_type: object
+    card_type: ResolvedCardType
 
 
 def export_card(card, *, image_mapper=None):

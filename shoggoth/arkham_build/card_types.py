@@ -2,6 +2,8 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import NamedTuple
 
+from shoggoth.card import Face
+
 
 class CardType(NamedTuple):
     code: str
@@ -14,6 +16,9 @@ class NoCardType(Enum):
     UNSUPPORTED = auto()
     # A generic player or encounter card back.
     CARD_BACK = auto()
+
+
+type ResolvedCardType = CardType | NoCardType
 
 
 UNSUPPORTED_TYPE = NoCardType.UNSUPPORTED
@@ -55,17 +60,18 @@ _UNSUPPORTED_TEMPLATES = {
 }
 
 
-def resolve_card_types(front, back):
+def resolve_card_types(
+    front: Face, back: Face
+) -> tuple[ResolvedCardType, ResolvedCardType]:
     mapped_front_type = _card_type(front)
     mapped_back_type = _card_type(back)
-
     return (
         _resolve_indeterminate_type(mapped_front_type, mapped_back_type),
         _resolve_indeterminate_type(mapped_back_type, mapped_front_type),
     )
 
 
-def is_double_sided(front_type, back_type):
+def is_double_sided(front_type: CardType, back_type: CardType) -> bool:
     if front_type == back_type == CardType("scenario", False):
         return True
 
@@ -77,13 +83,12 @@ def is_double_sided(front_type, back_type):
     )
 
 
-def face_template(face):
-    """The face's template name without "_back", and whether it is a back."""
+def face_template(face: Face) -> tuple[str, bool]:
     template = Path(face.get("type") or "").stem
     return template.removesuffix("_back"), template.endswith("_back")
 
 
-def _card_type(card_face):
+def _card_type(card_face: Face) -> ResolvedCardType:
     template, is_backside = face_template(card_face)
     if template in _UNSUPPORTED_TEMPLATES:
         return UNSUPPORTED_TYPE
@@ -108,7 +113,9 @@ def _card_type(card_face):
     return CardType(type_code, is_backside)
 
 
-def _resolve_indeterminate_type(card_type, other_type):
+def _resolve_indeterminate_type(
+    card_type: ResolvedCardType, other_type: ResolvedCardType
+) -> ResolvedCardType:
     """Some card types can only be resolved via the other card side."""
     if isinstance(card_type, NoCardType) or card_type.code != _INDETERMINATE_TYPE:
         return card_type

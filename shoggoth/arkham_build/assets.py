@@ -12,8 +12,6 @@ _IMAGE_TAG_PATTERN = re.compile(r"<image(?=\s|>)", re.IGNORECASE)
 
 
 class ImageAssetExporter:
-    """Copy original image files once per export and map inline image tags."""
-
     def __init__(self, project, url_prefix):
         self.project = project
         self.url_prefix = url_prefix
@@ -47,13 +45,13 @@ class ImageAssetExporter:
         return url
 
     def map_tag(self, tag):
-        """Return image HTML, an empty string, or None for a non-image tag."""
         if _IMAGE_TAG_PATTERN.match(tag) is None:
             return None
 
         attributes = {
             key.lower(): value for key, value in parse_tag_attributes(tag).items()
         }
+
         url = self.export(attributes.get("src"))
         if url is None:
             return ""

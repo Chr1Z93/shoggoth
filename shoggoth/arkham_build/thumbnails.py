@@ -2,15 +2,19 @@ from PIL import Image
 
 from shoggoth.arkham_build.card_types import (
     ACT_AGENDA_FULL_TEMPLATE,
-    UNSUPPORTED_TYPE,
+    CardType,
+    NoCardType,
+    ResolvedCardType,
     face_template,
 )
+from shoggoth.card import Face
 from shoggoth.renderer.card_renderer import CARD_SIZES
 
 
-# Crop coordinates use Shoggoth's 1500 x 2100 canvas, without bleed.
-# Each tuple contains x, y, and the square's side length.
-_REGIONS = {
+type Box = tuple[int, int, int, int]
+
+
+_REGIONS: dict[str, tuple[int, int, int]] = {
     "investigator": (15, 235, 1100),
     "investigator_back": (10, 5, 755),
     "asset": (320, 250, 870),
@@ -30,23 +34,24 @@ _REGIONS = {
 }
 
 
-def extract_thumbnail(image, face, card_type):
-    """Crop and resize a 128 x 128 thumbnail from the rendered face."""
-    if card_type == UNSUPPORTED_TYPE:
+def extract_thumbnail(
+    image: Image.Image, face: Face, card_type: ResolvedCardType
+) -> Image.Image:
+    if isinstance(card_type, NoCardType):
         box = _center_box(image)
     else:
         box = _region_box(image, face, card_type)
     return image.resize((128, 128), Image.Resampling.LANCZOS, box=box)
 
 
-def _center_box(image):
+def _center_box(image: Image.Image) -> Box:
     size = max(1, round(min(image.size) * 0.8))
     left = (image.width - size) // 2
     top = (image.height - size) // 2
     return left, top, left + size, top + size
 
 
-def _region_box(image, face, card_type):
+def _region_box(image: Image.Image, face: Face, card_type: CardType) -> Box:
     horizontal = image.width > image.height
     x, y, size = _REGIONS[_layout(face, card_type, horizontal)]
 
@@ -68,7 +73,7 @@ def _region_box(image, face, card_type):
     return left, top, left + width, top + height
 
 
-def _layout(face, card_type, horizontal):
+def _layout(face: Face, card_type: CardType, horizontal: bool) -> str:
     type_code, is_backside = card_type
     template, _ = face_template(face)
 
