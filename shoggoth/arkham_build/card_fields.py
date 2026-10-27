@@ -81,6 +81,10 @@ class _ChaosEntry(TypedDict, total=False):
     text: str | None
 
 
+# Weakness templates print their type label as the subtitle.
+_WEAKNESS_LABELS = {"%:WEAKNESS", "%:BASIC WEAKNESS"}
+
+
 _SLOT_MAP = {
     "hands": "Hand x2",
     "arcanes": "Arcane x2",
@@ -105,7 +109,7 @@ def export_face_fields(
         **compact(
             {
                 "name": _name(face, image_mapper),
-                "subname": _optional_text(face, "subtitle", image_mapper),
+                "subname": _subname(face, image_mapper),
                 "subtype_code": _subtype(face),
                 "traits": _optional_text(face, "traits", image_mapper),
                 "text": text,
@@ -197,6 +201,12 @@ def _name(face: Face, image_mapper: ImageMapper | None) -> str:
 def _is_unique(face: Face) -> bool | None:
     name = resolve_text(face, "name", _raw_name(face))
     return "<unique>" in name.lower() or None
+
+
+def _subname(face: Face, image_mapper: ImageMapper | None) -> str | None:
+    if str(face.get("subtitle", None) or "").strip() in _WEAKNESS_LABELS:
+        return None
+    return _optional_text(face, "subtitle", image_mapper)
 
 
 def _optional_text(
