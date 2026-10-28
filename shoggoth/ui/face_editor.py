@@ -4,7 +4,7 @@ FaceEditor base class for Shoggoth face editors
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QTextEdit, QComboBox,
-    QLabel, QCompleter, QCheckBox, QToolButton, QSpinBox, QPushButton
+    QLabel, QCompleter, QCheckBox, QToolButton, QSpinBox, QPushButton, QDialog
 )
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QPixmap, QFont, QFontDatabase
@@ -66,6 +66,7 @@ class FaceEditor(QWidget):
 
         # Always add type selector first
         self.add_type_selector()
+        self.add_inherit_row()
 
         # Then setup custom fields
         self.setup_ui()
@@ -124,6 +125,97 @@ class FaceEditor(QWidget):
             self.face.set('type', value)
             # Emit signal to trigger editor swap
             self.type_changed.emit(self.face)
+
+    def add_inherit_row(self):
+        """Add the "Inherits from" row - shown in all editors. A face inheriting
+        from another card's face shows that face's values as placeholders (see
+        load_data) and only stores what it overrides; see Face.inherit."""
+        column = QVBoxLayout()
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(4)
+        label = QLabel(tr("FIELD_INHERIT").upper())
+        label.setProperty("role", "field-label")
+        label.setToolTip(tr("HELP_INHERIT"))
+        column.addWidget(label)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        self.inherit_label = QLabel()
+        row.addWidget(self.inherit_label, 1)
+        self.inherit_face_toggle = SegmentedToggle([tr("TAB_FRONT"), tr("TAB_BACK")], values=['front', 'back'])
+        self.inherit_face_toggle.valueChanged.connect(self._on_inherit_face_changed)
+        row.addWidget(self.inherit_face_toggle)
+        self.inherit_goto_btn = QPushButton(tr("BTN_GO_TO"))
+        self.inherit_goto_btn.clicked.connect(self._on_inherit_goto)
+        row.addWidget(self.inherit_goto_btn)
+        change_btn = QPushButton(tr("BTN_CHANGE"))
+        change_btn.clicked.connect(self._on_inherit_change)
+        row.addWidget(change_btn)
+        self.inherit_clear_btn = QPushButton(tr("BTN_CLEAR"))
+        self.inherit_clear_btn.clicked.connect(self._on_inherit_clear)
+        row.addWidget(self.inherit_clear_btn)
+        column.addLayout(row)
+
+        widget = QWidget()
+        widget.setLayout(column)
+        self.main_layout.addWidget(widget)
+        self._refresh_inherit_row()
+
+    def _refresh_inherit_row(self):
+        link = self.face.inherit
+        source = self.face.inherited_face
+        if not link:
+            self.inherit_label.setText(tr("OPT_BONDED_NONE"))
+        elif source is None:
+            self.inherit_label.setText(tr("LABEL_INHERIT_MISSING", id=link['card']))
+        else:
+            self.inherit_label.setText(source.card.name)
+        self.inherit_face_toggle.set_current_value(link['face'] if link else 'front')
+        self.inherit_face_toggle.setVisible(bool(link))
+        self.inherit_goto_btn.setVisible(source is not None)
+        self.inherit_clear_btn.setEnabled(bool(link))
+
+    def _set_inherit(self, link):
+        """Store a new inherit link (or None) and reload the fields, as every
+        placeholder may have changed."""
+        self.face.set('inherit', link)
+        self.load_data()
+        self._refresh_inherit_row()
+
+    def _on_inherit_change(self):
+        """Pick the card to inherit from with the shared element picker
+        (see element_selector.py), like the Meta tab's "Bonded to"."""
+        from shoggoth.ui.element_selector import ElementSelectorDialog, KIND_CARD
+
+        dialog = ElementSelectorDialog(
+            self.face.card.project,
+            title=tr("DLG_SELECT_INHERIT_CARD"),
+            kinds=[KIND_CARD],
+            exclude_ids=[self.face.card.id],
+            instructions=tr("HELP_INHERIT"),
+            parent=self,
+        )
+        chosen = {}
+        dialog.element_chosen.connect(lambda entry: chosen.update(entry=entry))
+        if dialog.exec() == QDialog.Accepted and 'entry' in chosen:
+            current = self.face.inherit
+            face_name = current['face'] if current else self.face.card.face_name(self.face)
+            self._set_inherit({'card': chosen['entry'].id, 'face': face_name})
+
+    def _on_inherit_face_changed(self, face_name):
+        link = self.face.inherit
+        if link and link['face'] != face_name:
+            self._set_inherit({**link, 'face': face_name})
+
+    def _on_inherit_clear(self):
+        if self.face.inherit:
+            self._set_inherit(None)
+
+    def _on_inherit_goto(self):
+        source = self.face.inherited_face
+        if source is not None:
+            shoggoth.app.show_card(source.card)
 
     def setup_ui(self):
         """Override in subclasses to add custom fields"""
@@ -798,6 +890,7 @@ class FaceEditor(QWidget):
         self.fields['illustration_pan_y'] = illustration.pan_y_input.input
         self.fields['illustration_pan_x'] = illustration.pan_x_input.input
         self.fields['illustration_scale'] = illustration.scale_input.input
+        self.fields['illustration_rotation'] = illustration.rotation_input.input
         self.fields['illustrator'] = illustration.artist_input.input
         self.fields['illustration_mirror'] = illustration.mirror_checkbox
 
@@ -806,6 +899,7 @@ class FaceEditor(QWidget):
         illustration.pan_y_input.input.textChanged.connect(lambda: self.on_field_changed('illustration_pan_y'))
         illustration.pan_x_input.input.textChanged.connect(lambda: self.on_field_changed('illustration_pan_x'))
         illustration.scale_input.input.textChanged.connect(lambda: self.on_field_changed('illustration_scale'))
+        illustration.rotation_input.input.textChanged.connect(lambda: self.on_field_changed('illustration_rotation'))
         illustration.artist_input.input.textChanged.connect(lambda: self.on_field_changed('illustrator'))
         illustration.mirror_checkbox.toggled.connect(lambda: self.on_field_changed('illustration_mirror'))
 

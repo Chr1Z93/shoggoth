@@ -872,9 +872,6 @@ function convert_card(path, collection, image_folder) {
         }
     }
 
-
-
-
     // unique
     if (has_value(settings.get("Unique")) && settings.get("Unique") != "0") {
         out["front"]["title"] = "<unique><name>";
@@ -920,9 +917,9 @@ function convert_card(path, collection, image_folder) {
     }
     
     if (has_value(settings.get("Slot"))) {
-        let slots = [String(settings.get("Slot"))];
+        let slots = [String(settings.get("Slot")).toLowerCase()];
         if (has_value(settings.get("Slot2"))) {
-            slots.push(String(settings.get("Slot2")))
+            slots.push(String(settings.get("Slot2")).toLowerCase())
         };
         out["front"]["slot"] = slots.join(", ");
     }
@@ -1295,6 +1292,11 @@ function convert_card(path, collection, image_folder) {
         if (parts.length > 0) {
             out["back"]["text"] = parts.join("\n");
         }
+    }
+
+    // Disabled enumeration for mini cards
+    if (front_types[script_name] === "mini_investigator") {
+        out["enumerated"] = "ignored"
     }
 
     // chaos card entries

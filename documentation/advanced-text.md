@@ -99,13 +99,21 @@ Pixel values are in card pixels. A card is about 1500 pixels wide, and normal ru
 
 Text boxes aren't always rectangles. Many templates wrap text around the art or around icons, and Shoggoth follows those shapes automatically.
 
+## Colored text
+
+```
+<color "darkred">Forced</color> - When this card enters play...
+```
+
+Everything between `<color "...">` and `</color>` is drawn in that color, including icons and underlines. The color can be a name (`red`, `darkgreen`), a hex code (`#8b0000`) or `rgb(139, 0, 0)`. Colors can be nested: after an inner `</color>`, the text goes back to the outer color. An unknown color is ignored, and the text keeps its color.
+
 ## Images in text
 
 ```
 Place 1 <image src="icons/key.png"> on this location.
 ```
 
-The image is scaled to the height of the text. The path works like any other image path: relative to the project file, or absolute. Add `color="inverted"` to invert a black icon to white, or any color, like `color="#8b0000"` or `color="red"`, to tint a grayscale icon. The *Image* button above text fields inserts the tag for you.
+The image is scaled to the height of the text. The path works like any other image path: relative to the project file, or absolute. Add `color="inverted"` to invert a black icon to white, or any color, like `color="#8b0000"` or `color="red"`, to tint a grayscale icon. The *Image* button above text fields inserts the tag for you. Use **Tools → Icon Browser** to preview icons in the active project's `icons` folder and copy or insert their references.
 
 For custom fonts in text, see [Using your own fonts](fonts.md).
 

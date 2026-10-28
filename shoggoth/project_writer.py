@@ -22,7 +22,7 @@ class Writer:
 
     def _write(self, data):
         """Writes the project file, and tells the project what it now holds."""
-        text = json.dumps(order_dict(data), indent=4)
+        text = json.dumps(order_dict(data), indent=4, ensure_ascii=False)
         atomic_write(self.project.file_path, text)
         self.project.remember_saved(json.loads(text))
 
@@ -34,10 +34,10 @@ class Writer:
             if value['id'] == card.id:
                 index = key
                 break
-        if index:
+        if index is not None:
             orig_data['cards'][index] = card.data
         else:
-            orig_data['cards'][card.id] = card.data
+            orig_data['cards'].append(card.data)
 
         self.project.set_dirty(card.id, False)
         self._write(orig_data)

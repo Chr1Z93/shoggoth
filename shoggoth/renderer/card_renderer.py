@@ -1,6 +1,5 @@
 from PIL import Image, ImageOps, ImageDraw
 import numpy as np
-import os
 import threading
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -16,7 +15,6 @@ import pyvips
 import pypdfium2 as pdfium
 import re
 import json
-import functools
 import logging
 
 logging.getLogger('PIL').setLevel(logging.ERROR)
@@ -102,7 +100,8 @@ DEFAULT_TEXT_FIELDS = [
     'cost', 'name', 'traits', 'text', 'subtitle', 'label', 'index',
     'attack', 'evade', 'health', 'stamina', 'sanity', 'victory',
     'clues', 'doom', 'shroud', 'willpower', 'intellect',
-    'combat', 'agility', 'illustrator', 'copyright', 'collection', 'difficulty',
+    'combat', 'agility', 'illustrator', 'copyright', 'collection',
+    'collection_icon', 'collection_number', 'difficulty',
     'text1', 'text2', 'text3', 'chaos_extra', 'tracking',
 ]
 DEFAULT_IMAGE_FIELDS = [
@@ -352,12 +351,10 @@ class CardRenderer:
             if str(path).lower().endswith('.pdf'):
                 with perf.span('Render PDF page to bitmap'):
                     self.resized_cache[(path, size)] = _render_pdf_page(path, size)
-            elif str(path).endswith('.svg'):
+            elif str(path).lower().endswith('.svg'):
                 with perf.span('Load+rasterize SVG (vips)'):
                     vips_image = pyvips.Image.new_from_file(str(path), revalidate=True)
-                    svg_scale = size[0]/vips_image.width
-                    if svg_scale > (size[1]/vips_image.height):
-                        svg_scale = size[1]/vips_image.height
+                    svg_scale = min(size[0] / vips_image.width, size[1] / vips_image.height)
                     vips_image = pyvips.Image.new_from_file(str(path), scale=svg_scale, revalidate=True)
                 with perf.span('Convert vips buffer to PIL'):
                     image = Image.frombytes(
@@ -365,7 +362,14 @@ class CardRenderer:
                         (vips_image.width, vips_image.height),
                         vips_image.write_to_memory()
                     )
-                self.resized_cache[(path, size)] = image
+
+                # Center the SVG inside the requested size
+                result = Image.new('RGBA', size, (0, 0, 0, 0))
+                x = (size[0] - image.width) // 2
+                y = (size[1] - image.height) // 2
+                result.paste(image, (x, y), image)
+
+                self.resized_cache[(path, size)] = result
             else:
                 img = self.get_cached(path)
                 if img.size == size:
@@ -503,6 +507,9 @@ class CardRenderer:
             lossless = quality == 100
             outputs = []
 
+            # Ensure each file path is only written once per export
+            exported_paths = set()
+
             # should each version (eg. 1/2 and 2/2) be printed seperately or as 1-2/2?
             faces = card.versions
             if not separate_versions:
@@ -514,19 +521,22 @@ class CardRenderer:
                     # if this is a repeated card, only export it once
                     if face['type'] in ('player', 'encounter') and not include_backs:
                         file_path = Path(folder) / f'{face["type"]}.{format}'
-                        if not file_path.exists():
-                            self._export_side(variant, face, file_path, bleed, rotate, size, quality, lossless, text_as_html, rounded)
-                        outputs.append(str(file_path))
                     else:
                         face_letter = 'a' if name == 'front' else 'b'
                         file_path = Path(folder) / base.format(face=name, order=(number + index), format=format, face_letter=face_letter, index=index)
+                    
+                    outputs.append(str(file_path))
+
+                    if file_path not in exported_paths:
                         self._export_side(variant, face, file_path, bleed, rotate, size, quality, lossless, text_as_html, rounded)
-                        outputs.append(str(file_path))
+                        exported_paths.add(file_path)
+
             return outputs
+            
         except Exception as e:
             print('failed to export card', card)
             print(e)
-            logger.error('failed to export card', card, exc_info=True)
+            logger.exception('failed to export card %s', card)
 
     def _export_side(self, variant, face, file_path, bleed, rotate, size, quality, lossless, text_as_html, rounded=False):
         """Render one face and save it, optionally writing an HTML text sidecar.
@@ -687,13 +697,13 @@ class CardRenderer:
         try:
             with perf.span('render_illustration (base layer)'):
                 self.render_illustration(card_image, side, s)
-        except Exception as e:
+        except Exception:
             logger.exception('Failed to render Illustration')
 
         try:
             with perf.span('render_template'):
                 self.render_template(card_image, side, bleed, template_bleed)
-        except Exception as e:
+        except Exception:
             logger.exception('Failed to render Template')
 
         if not template_bleed:
@@ -736,14 +746,15 @@ class CardRenderer:
                 with perf.span(func.__name__, at=func):
                     func(card_image, side, s)
             except Exception as e:
-                logging.debug(f'Failed in {func}:', e, exc_info=True)
+                # logged (not just printed): the visual check fails on these
+                logger.exception('Failed in %s', func.__name__)
                 print(f'Failed in {func}: {e}')
 
         if side['type'] == 'investigator' or side.get('illustration_on_top', False):
             try:
                 with perf.span('render_illustration (over-template layer)'):
                     self.render_illustration(card_image, side, s)
-            except Exception as e:
+            except Exception:
                 logger.exception('Failed to render Illustration second layer')
 
         # debug regions

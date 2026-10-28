@@ -1,70 +1,98 @@
+"""Shared fixtures for the fast test suite.
+
+Nothing here needs the asset pack, a network connection or a display: the
+defaults files a test relies on are written by the test itself (see the
+`defaults` fixture), so results don't change when the asset pack does.
+Rendering against the real asset pack is the visual check's job
+(scripts/visual_check.py).
+"""
 import json
 import os
-from contextlib import contextmanager
-from pathlib import Path
 
 import pytest
-from PIL import Image
 
-from shoggoth import arkham_build
-from shoggoth.project import Project
+# Never open windows, even if a test imports Qt modules.
+os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
-SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
-UPDATE_SNAPSHOTS = os.environ.get("UPDATE_SNAPSHOTS") == "1"
-
-
-class _StubRenderer:
-    """Render every face as a blank card, so exports with images stay fast."""
-
-    locale = "en"
-
-    @contextmanager
-    def render_card_side(self, card, side, include_bleed=True):
-        horizontal = side.get("orientation", "vertical") == "horizontal"
-        yield Image.new("RGB", (2100, 1500) if horizontal else (1500, 2100))
+import shoggoth.card  # noqa: E402
+from shoggoth.project import Project  # noqa: E402
 
 
-def _normalize(data):
-    """Replace values that change between runs."""
-    data["meta"]["date_updated"] = "<date_updated>"
-    data["meta"]["generator"] = "<generator>"
-    return data
+def card_data(card_id, name='Card', front=None, back=None, **extra):
+    """A minimal stored card."""
+    return {
+        'id': card_id,
+        'name': name,
+        'front': front if front is not None else {'type': 'asset'},
+        'back': back if back is not None else {'type': 'player'},
+        **extra,
+    }
 
 
-@pytest.fixture
-def export(tmp_path):
-    """Export a project dict to arkham.build JSON."""
-
-    def run(project_data, settings=None):
-        project = Project(str(tmp_path / "project.json"), project_data)
-        data = arkham_build.export_project(
-            project,
-            settings or {},
-            _StubRenderer(),
-            card_executor=lambda cards, export_card: [
-                export_card(card) for card in cards
-            ],
-        )
-        return _normalize(data)
-
-    return run
+def project_data(cards=(), encounter_sets=(), **extra):
+    """A minimal stored project."""
+    return {
+        'name': 'Test Project',
+        'id': 'project-id',
+        'cards': list(cards),
+        'encounter_sets': list(encounter_sets),
+        **extra,
+    }
 
 
 @pytest.fixture
-def snapshot(request):
-    """Compare data to the test's JSON snapshot; UPDATE_SNAPSHOTS=1 rewrites it."""
-    path = SNAPSHOT_DIR / f"{request.node.name}.json"
+def write_project(tmp_path):
+    """write_project(data, name='project.shoggoth') -> path of the written file."""
+    def write(data, name='project.shoggoth'):
+        path = tmp_path / name
+        path.write_text(json.dumps(data, indent=4, ensure_ascii=False), encoding='utf-8')
+        return path
+    return write
 
-    def check(data):
-        actual = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-        if UPDATE_SNAPSHOTS:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(actual, encoding="utf-8")
-            return
 
-        assert path.exists(), (
-            f"Missing snapshot {path.name}, run with UPDATE_SNAPSHOTS=1"
-        )
-        assert actual == path.read_text(encoding="utf-8")
+@pytest.fixture
+def load_project(write_project):
+    """load_project(data) -> Project loaded from a freshly written file."""
+    def load(data, name='project.shoggoth'):
+        return Project.load(write_project(data, name))
+    return load
 
-    return check
+
+@pytest.fixture
+def defaults(tmp_path, monkeypatch):
+    """defaults(name, content): writes a defaults file that faces of type
+    `name` resolve against, instead of the asset pack's."""
+    folder = tmp_path / 'defaults'
+    folder.mkdir()
+    monkeypatch.setattr(shoggoth.card, 'defaults_dir', folder)
+
+    def write(name, content):
+        (folder / f'{name}.json').write_text(json.dumps(content), encoding='utf-8')
+    return write
+
+
+def pytest_configure(config):
+    config.addinivalue_line('markers', 'assets: needs the installed asset pack (fonts, templates, ...)')
+
+
+def pytest_collection_modifyitems(config, items):
+    """Tests marked `assets` skip when the asset pack isn't installed (as in
+    CI) -- unless SHOGGOTH_REQUIRE_ASSETS is set (scripts/release.py sets it),
+    which turns that skip into a failure."""
+    from shoggoth.files import font_dir
+    if font_dir.is_dir() and any(font_dir.iterdir()):
+        return
+    if os.environ.get('SHOGGOTH_REQUIRE_ASSETS'):
+        raise pytest.UsageError(f'SHOGGOTH_REQUIRE_ASSETS is set, but there is no asset pack at {font_dir.parent}')
+    skip = pytest.mark.skip(reason='asset pack not installed')
+    for item in items:
+        if 'assets' in item.keywords:
+            item.add_marker(skip)
+
+
+@pytest.fixture(autouse=True)
+def _no_leaked_listeners():
+    """Project change listeners are class-level: keep tests from leaking them."""
+    listeners = list(Project._change_listeners)
+    yield
+    Project._change_listeners[:] = listeners

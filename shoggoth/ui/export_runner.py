@@ -93,7 +93,7 @@ def _export_numbered_cards(parent, renderer, cards, folder, kwargs):
             progress.setValue(i - cores)
         progress.setLabelText(tr("MSG_EXPORTING_CARD").format(name=card.name))
 
-        def _target(card=card, kw=dict(kwargs, number=number)):
+        def _target(card=card, kw=dict(kwargs, number=number)):  # noqa: B006 -- binds per-iteration values
             outputs = renderer_for_card(renderer, card).export_card_images(card, str(folder), **kw)
             if outputs:
                 entries.extend((card, p) for p in outputs)
@@ -218,7 +218,7 @@ def _run_tts(parent, project, renderer, cards, scope_type, d):
     # encounter-sets/cards scopes) exports the resolved card list as one
     # flat TTS bag via export_player_cards, which accepts any card list.
     if update_file and Path(update_file).exists():
-        status = tts_lib.update_file(cards, folder, update_file)
+        status = tts_lib.update_file(cards, folder, update_file, d['export_images'])
         path = update_file
     elif scope_type == 'campaign':
         status, path = tts_lib.export_campaign(project, folder, sync=sync)
