@@ -392,6 +392,12 @@
   "FIELD_NOTES": "备注",
   "HELP_NOTES": "用于设计过程中的沟通——不会用于导出。",
   "FIELD_TAGS": "标签",
+  "FIELD_CONTENT_TYPES": "内容类型",
+  "CONTENT_TYPE_CAMPAIGN": "战役",
+  "CONTENT_TYPE_INVESTIGATORS": "调查员",
+  "CONTENT_TYPE_PLAYER_CARDS": "玩家卡",
+  "CONTENT_TYPE_REWORK": "重制",
+  "CONTENT_TYPE_SCENARIO": "剧本",
   "PLACEHOLDER_TAGS": "以逗号分隔的标签",
   "FIELD_FOLDER": "文件夹",
   "HELP_FOLDER": "此卡牌在文件夹视图中的位置，以路径表示：Boss/第一幕。{花括号}中的名称代表内置分组，并随卡牌变化：{campaign_cards}、{player_cards}、{encounter_set}、{story}、{locations}、{encounter}、{investigators}、{investigator}、{class}、{card_type}。清空此栏即可恢复默认值。",
@@ -399,6 +405,7 @@
   "HELP_REQUIRED_SETS": "游戏时与此套组一起使用的项目中其他遭遇套组：",
   "FIELD_AUTHOR": "作者",
   "FIELD_BANNER_URL": "横幅 URL",
+  "FIELD_BANNER_CREDIT": "横幅署名",
   "FIELD_WEBSITE_URL": "网站 URL",
   "FIELD_STATUS": "状态",
   "// ===== CARD EDITOR - SPECIAL SECTIONS =====": "",
@@ -1164,5 +1171,9 @@
   "TAG_BTN_BOLD": "粗体",
   "TAG_BTN_ITALIC": "斜体",
   "TAG_BTN_VALIGN": "垂直对齐",
-  "TAG_BTN_IMAGE": "图片"
+  "TAG_BTN_IMAGE": "图片",
+  "CARD_LABEL_DECK_SIZE": "卡牌张数|牌组卡牌张数",
+  "CARD_KEYWORD_PERMANENT": "永久",
+  "CARD_KEYWORD_EXCEPTIONAL": "卓越",
+  "CARD_KEYWORD_MYRIAD": "多重"
 }

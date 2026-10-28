@@ -91,11 +91,15 @@ def test_project_meta_and_groups(export, snapshot):
     project = _project(
         meta={
             "author": "Test Author",
+            "banner_url": "https://example.com/banner.png",
+            "banner_credit": "Test Artist",
             "description": "A project used by the snapshot tests.",
             "website_url": "https://example.com/snapshot-test",
             # Not a known status, exported as "draft".
             "status": "playtesting",
             "tags": ["campaign", "fan-made"],
+            # Unknown content types are dropped.
+            "types": ["campaign", "player_cards", "expansion"],
         },
     )
 

@@ -396,6 +396,12 @@
   "FIELD_NOTES": "Notas",
   "HELP_NOTES": "Para comunicação durante o design — não é usado nas exportações.",
   "FIELD_TAGS": "Etiquetas",
+  "FIELD_CONTENT_TYPES": "Tipos de Conteúdo",
+  "CONTENT_TYPE_CAMPAIGN": "Campanha",
+  "CONTENT_TYPE_INVESTIGATORS": "Investigadores",
+  "CONTENT_TYPE_PLAYER_CARDS": "Cartas de Jogador",
+  "CONTENT_TYPE_REWORK": "Reformulação",
+  "CONTENT_TYPE_SCENARIO": "Cenário",
   "PLACEHOLDER_TAGS": "Etiquetas separadas por vírgulas",
   "FIELD_FOLDER": "Pasta",
   "HELP_FOLDER": "Onde esta carta aparece na vista em pastas, como um caminho: Chefes/Ato 1. Os nomes entre {chaves} representam os grupos integrados e acompanham a carta: {campaign_cards}, {player_cards}, {encounter_set}, {story}, {locations}, {encounter}, {investigators}, {investigator}, {class}, {card_type}. Limpe o campo para voltar ao padrão.",
@@ -403,6 +409,7 @@
   "HELP_REQUIRED_SETS": "Outros conjuntos de encontro do projeto que são usados em conjunto com este ao jogar:",
   "FIELD_AUTHOR": "Autor",
   "FIELD_BANNER_URL": "URL do Banner",
+  "FIELD_BANNER_CREDIT": "Créditos do Banner",
   "FIELD_WEBSITE_URL": "URL do Website",
   "FIELD_STATUS": "Estado",
   "// ===== CARD EDITOR - SPECIAL SECTIONS =====": "",
@@ -1188,5 +1195,8 @@
   "TAG_BTN_BOLD": "Negrito",
   "TAG_BTN_ITALIC": "Itálico",
   "TAG_BTN_VALIGN": "Alin. V",
-  "TAG_BTN_IMAGE": "Imagem"
+  "TAG_BTN_IMAGE": "Imagem",
+  "CARD_KEYWORD_PERMANENT": "Permanente",
+  "CARD_KEYWORD_EXCEPTIONAL": "Excepcional",
+  "CARD_KEYWORD_MYRIAD": "Miríade"
 }

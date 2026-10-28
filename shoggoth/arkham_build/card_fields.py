@@ -3,7 +3,12 @@ from collections.abc import Mapping
 from html import unescape
 from typing import TypedDict
 
-from shoggoth.arkham_build.text import ImageMapper, map_text, resolve_text
+from shoggoth.arkham_build.text import (
+    ImageMapper,
+    card_labels,
+    map_text,
+    resolve_text,
+)
 from shoggoth.card import Card, Face
 from shoggoth.card_translations import load_card_translations
 
@@ -94,15 +99,11 @@ def compact[V](values: Mapping[str, V | None]) -> dict[str, V]:
     return {key: value for key, value in values.items() if value is not None}
 
 
-# TODO: Parse deck requirements that use custom text or localized labels.
-# TODO: add programmatic deck_options parser.
-# TODO: Link customization cards to their parent cards and export
-# customization_text, customization_options, and customization_change.
 def export_face_fields(
     face: Face, *, image_mapper: ImageMapper | None = None
 ) -> dict[str, object]:
     text = _text(face, image_mapper)
-    keywords = _keywords(text)
+    keywords = _keywords(face, text)
     return {
         **keywords,
         **compact(
@@ -140,7 +141,6 @@ def export_face_fields(
         **_numeric_field(face, "doom"),
         **_numeric_field(face, "shroud"),
         **_victory(face),
-        # TODO: Add sanity_per_investigator to the arkham.build card schema.
         **_numeric_field(face, "sanity"),
         **_skills(face),
     }
@@ -269,8 +269,7 @@ def _collapse_tags(text: str) -> str:
     return " ".join(re.sub(r"<[^>]*>", "", text).split())
 
 
-def _keywords(text: str | None) -> dict[str, bool]:
-    # TODO: Add localized keyword labels to the asset translation catalogs.
+def _keywords(face: Face, text: str | None) -> dict[str, bool]:
     if text is None:
         return {}
     text = re.sub(
@@ -282,9 +281,13 @@ def _keywords(text: str | None) -> dict[str, bool]:
     text = unescape(re.sub(r"<[^>]*>", "", text))
     first_line = text.split("\n", 1)[0]
     return {
-        keyword.lower(): True
-        for keyword in ("Permanent", "Exceptional", "Myriad")
-        if f"{keyword}." in first_line
+        keyword: True
+        for keyword in ("permanent", "exceptional", "myriad")
+        if any(
+            f"{label}{stop}" in first_line
+            for label in card_labels(face, f"CARD_KEYWORD_{keyword.upper()}")
+            for stop in ".。"
+        )
     }
 
 

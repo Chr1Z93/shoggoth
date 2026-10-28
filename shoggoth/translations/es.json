@@ -392,6 +392,12 @@
   "FIELD_NOTES": "Notas",
   "HELP_NOTES": "Para comunicarse durante el diseño — no se usa en las exportaciones.",
   "FIELD_TAGS": "Etiquetas",
+  "FIELD_CONTENT_TYPES": "Tipos de Contenido",
+  "CONTENT_TYPE_CAMPAIGN": "Campaña",
+  "CONTENT_TYPE_INVESTIGATORS": "Investigadores",
+  "CONTENT_TYPE_PLAYER_CARDS": "Cartas de Jugador",
+  "CONTENT_TYPE_REWORK": "Revisión",
+  "CONTENT_TYPE_SCENARIO": "Escenario",
   "PLACEHOLDER_TAGS": "Etiquetas separadas por comas",
   "FIELD_FOLDER": "Carpeta",
   "HELP_FOLDER": "Dónde aparece esta carta en la vista de carpetas, como una ruta: Jefes/Acto 1. Los nombres entre {llaves} representan los grupos integrados y siguen a la carta: {campaign_cards}, {player_cards}, {encounter_set}, {story}, {locations}, {encounter}, {investigators}, {investigator}, {class}, {card_type}. Vacía el campo para volver al valor predeterminado.",
@@ -399,6 +405,7 @@
   "HELP_REQUIRED_SETS": "Otros conjuntos de encuentro del proyecto que se usan junto con este al jugar:",
   "FIELD_AUTHOR": "Autor",
   "FIELD_BANNER_URL": "URL del Banner",
+  "FIELD_BANNER_CREDIT": "Créditos del Banner",
   "FIELD_WEBSITE_URL": "URL del Sitio Web",
   "FIELD_STATUS": "Estado",
   "// ===== CARD EDITOR - SPECIAL SECTIONS =====": "",
@@ -1164,5 +1171,9 @@
   "TAG_BTN_BOLD": "Negrita",
   "TAG_BTN_ITALIC": "Cursiva",
   "TAG_BTN_VALIGN": "Alin. V",
-  "TAG_BTN_IMAGE": "Imagen"
+  "TAG_BTN_IMAGE": "Imagen",
+  "CARD_LABEL_DECK_SIZE": "Tamaño de mazo",
+  "CARD_KEYWORD_PERMANENT": "Permanente",
+  "CARD_KEYWORD_EXCEPTIONAL": "Excepcional",
+  "CARD_KEYWORD_MYRIAD": "Miríada"
 }

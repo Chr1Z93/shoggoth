@@ -28,10 +28,9 @@ class _ExportedGroup(TypedDict):
 
 
 _STATUSES = {"draft", "alpha", "beta", "complete", "final"}
+_CONTENT_TYPES = {"campaign", "investigators", "player_cards", "rework", "scenario"}
 
 
-# FIXME: `meta.banner_credit` is missing in UI
-# FIXME: `meta.types` is missing in UI
 # FIXME: `meta.url` could be derived for Celeano cloud projects
 def export_project(
     project: Project,
@@ -105,6 +104,7 @@ def _project_meta(data: Mapping[str, Any]) -> dict[str, object]:
     meta = data.get("meta", {})
     language = meta.get("language") or "en"
     status = meta.get("status")
+    types = [t for t in meta.get("types") or [] if t in _CONTENT_TYPES]
 
     return {
         "author": meta.get("author", ""),
@@ -116,10 +116,12 @@ def _project_meta(data: Mapping[str, Any]) -> dict[str, object]:
         **compact(
             {
                 "banner_url": meta.get("banner_url"),
+                "banner_credit": meta.get("banner_credit"),
                 "description": meta.get("description"),
                 "external_link": meta.get("website_url"),
                 "status": status if status in _STATUSES else "draft",
                 "tags": meta.get("tags"),
+                "types": types or None,
             }
         ),
     }

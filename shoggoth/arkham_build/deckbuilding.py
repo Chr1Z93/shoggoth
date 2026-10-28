@@ -3,7 +3,7 @@ from collections.abc import Mapping, Sequence
 from html import unescape
 from typing import Required, TypedDict
 
-from shoggoth.arkham_build.text import map_text
+from shoggoth.arkham_build.text import card_labels, map_text
 from shoggoth.card import Card, Face
 
 
@@ -66,10 +66,11 @@ def _plain_text(face: Face, value: object) -> str:
 
 def _deck_size_requirements(face: Face) -> list[str]:
     """The size requirement from the last valid "Deck Size" entry, if any."""
-    # TODO: support localized "Deck Size" labels.
+    labels = {label.casefold() for label in card_labels(face, "CARD_LABEL_DECK_SIZE")}
+
     requirements = []
     for header, value in face.get("entries", []):
-        if _plain_text(face, header).casefold().rstrip(": ") != "deck size":
+        if _plain_text(face, header).casefold().rstrip(":： ") not in labels:
             continue
 
         match = re.fullmatch(r"(\d+)\.?", _plain_text(face, value))

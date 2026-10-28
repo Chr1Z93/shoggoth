@@ -381,6 +381,12 @@
   "FIELD_NOTES": "Заметки",
   "HELP_NOTES": "Для общения во время разработки — не используется при экспорте.",
   "FIELD_TAGS": "Теги",
+  "FIELD_CONTENT_TYPES": "Типы контента",
+  "CONTENT_TYPE_CAMPAIGN": "Кампания",
+  "CONTENT_TYPE_INVESTIGATORS": "Сыщики",
+  "CONTENT_TYPE_PLAYER_CARDS": "Карты игрока",
+  "CONTENT_TYPE_REWORK": "Переработка",
+  "CONTENT_TYPE_SCENARIO": "Сценарий",
   "PLACEHOLDER_TAGS": "Теги через запятую",
   "FIELD_FOLDER": "Папка",
   "HELP_FOLDER": "Где эта карта отображается в режиме папок, в виде пути: Боссы/Акт 1. Имена в {фигурных скобках} обозначают встроенные группы и следуют за картой: {campaign_cards}, {player_cards}, {encounter_set}, {story}, {locations}, {encounter}, {investigators}, {investigator}, {class}, {card_type}. Очистите поле, чтобы вернуться к значению по умолчанию.",
@@ -388,6 +394,7 @@
   "HELP_REQUIRED_SETS": "Другие наборы контактов проекта, которые используются в игре вместе с этим:",
   "FIELD_AUTHOR": "Автор",
   "FIELD_BANNER_URL": "URL баннера",
+  "FIELD_BANNER_CREDIT": "Автор баннера",
   "FIELD_WEBSITE_URL": "URL сайта",
   "FIELD_STATUS": "Статус",
   "// ===== CARD EDITOR - SPECIAL SECTIONS =====": "",
@@ -1131,5 +1138,9 @@
   "TAG_BTN_BOLD": "Жирный",
   "TAG_BTN_ITALIC": "Курсив",
   "TAG_BTN_VALIGN": "Выр. верт.",
-  "TAG_BTN_IMAGE": "Изображение"
+  "TAG_BTN_IMAGE": "Изображение",
+  "CARD_LABEL_DECK_SIZE": "Размер колоды",
+  "CARD_KEYWORD_PERMANENT": "Постоянный|Постоянная|Постоянное",
+  "CARD_KEYWORD_EXCEPTIONAL": "Исключительный|Исключительная|Исключительное|Исключительные",
+  "CARD_KEYWORD_MYRIAD": "Мириада"
 }

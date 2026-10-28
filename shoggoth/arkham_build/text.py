@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from shoggoth.card import Card, Face
 from shoggoth.card_translations import CARD_KEYWORD_DEFAULTS, load_card_translations
+from shoggoth.i18n import load_catalog
 
 # Maps an <image> tag to HTML.
 type ImageMapper = Callable[[str], str | None]
@@ -56,7 +57,6 @@ _TAG_REMOVALS = re.compile(
             r"<spacing\s+(?:\d+(?:\.\d*)?|\.\d+)>",
             "<valign>",
             r"<image(?:\s+[^>]*)?>",
-            # TODO: Add glyphs to the arkham.build icon font.
             "<resource>",
             "<clues>",
             "<doom>",
@@ -315,3 +315,9 @@ class _TextMapper:
             r"%:(?:" + "|".join(re.escape(key) for key in keys) + r")(?!\w)"
         )
         return pattern.sub(lambda match: catalog[match.group(0)[2:]], value)
+
+
+def card_labels(face: Face, key: str) -> set[str]:
+    language = face.card.effective_language or "en"
+    values = (load_catalog("en").get(key, ""), load_catalog(language).get(key, ""))
+    return {label for value in values for label in value.split("|") if label}

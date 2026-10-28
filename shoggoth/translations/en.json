@@ -427,6 +427,12 @@
   "FIELD_NOTES": "Notes",
   "HELP_NOTES": "For communication during design — not used in exports.",
   "FIELD_TAGS": "Tags",
+  "FIELD_CONTENT_TYPES": "Content Types",
+  "CONTENT_TYPE_CAMPAIGN": "Campaign",
+  "CONTENT_TYPE_INVESTIGATORS": "Investigators",
+  "CONTENT_TYPE_PLAYER_CARDS": "Player Cards",
+  "CONTENT_TYPE_REWORK": "Rework",
+  "CONTENT_TYPE_SCENARIO": "Scenario",
   "PLACEHOLDER_TAGS": "Comma-separated tags",
   "FIELD_TTS_METADATA": "TTS Metadata Additions/Override",
   "HELP_TTS_METADATA": "Use this field to define additional metadata for this card to be used by TTS.\nIt will be combined with the automatically generated metadata.",
@@ -436,6 +442,7 @@
   "HELP_REQUIRED_SETS": "Other encounter sets in the project that are used alongside this one when playing:",
   "FIELD_AUTHOR": "Author",
   "FIELD_BANNER_URL": "Banner URL",
+  "FIELD_BANNER_CREDIT": "Banner Credit",
   "FIELD_WEBSITE_URL": "Website URL",
   "FIELD_STATUS": "Status",
   "// ===== CARD EDITOR - SPECIAL SECTIONS =====": "",
@@ -1185,5 +1192,9 @@
   "TAG_BTN_BOLD": "Bold",
   "TAG_BTN_ITALIC": "Italic",
   "TAG_BTN_VALIGN": "Valign",
-  "TAG_BTN_IMAGE": "Image"
+  "TAG_BTN_IMAGE": "Image",
+  "CARD_LABEL_DECK_SIZE": "Deck Size",
+  "CARD_KEYWORD_PERMANENT": "Permanent",
+  "CARD_KEYWORD_EXCEPTIONAL": "Exceptional",
+  "CARD_KEYWORD_MYRIAD": "Myriad"
 }

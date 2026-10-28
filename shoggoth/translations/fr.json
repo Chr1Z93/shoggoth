@@ -392,6 +392,12 @@
   "FIELD_NOTES": "Notes",
   "HELP_NOTES": "Pour communiquer pendant la conception — non utilisé dans les exports.",
   "FIELD_TAGS": "Étiquettes",
+  "FIELD_CONTENT_TYPES": "Types de contenu",
+  "CONTENT_TYPE_CAMPAIGN": "Campagne",
+  "CONTENT_TYPE_INVESTIGATORS": "Investigateurs",
+  "CONTENT_TYPE_PLAYER_CARDS": "Cartes joueur",
+  "CONTENT_TYPE_REWORK": "Refonte",
+  "CONTENT_TYPE_SCENARIO": "Scénario",
   "PLACEHOLDER_TAGS": "Étiquettes séparées par des virgules",
   "FIELD_FOLDER": "Dossier",
   "HELP_FOLDER": "Où cette carte apparaît dans la vue en dossiers, sous forme de chemin : Boss/Acte 1. Les noms entre {accolades} désignent les groupes intégrés et suivent la carte : {campaign_cards}, {player_cards}, {encounter_set}, {story}, {locations}, {encounter}, {investigators}, {investigator}, {class}, {card_type}. Videz le champ pour revenir à la valeur par défaut.",
@@ -399,6 +405,7 @@
   "HELP_REQUIRED_SETS": "Autres sets de rencontre du projet utilisés avec celui-ci en jeu :",
   "FIELD_AUTHOR": "Auteur",
   "FIELD_BANNER_URL": "URL de la bannière",
+  "FIELD_BANNER_CREDIT": "Crédit de la bannière",
   "FIELD_WEBSITE_URL": "URL du site web",
   "FIELD_STATUS": "Statut",
   "// ===== CARD EDITOR - SPECIAL SECTIONS =====": "",
@@ -1164,5 +1171,9 @@
   "TAG_BTN_BOLD": "Gras",
   "TAG_BTN_ITALIC": "Italique",
   "TAG_BTN_VALIGN": "Align. V",
-  "TAG_BTN_IMAGE": "Image"
+  "TAG_BTN_IMAGE": "Image",
+  "CARD_LABEL_DECK_SIZE": "Taille du Deck",
+  "CARD_KEYWORD_PERMANENT": "Permanent",
+  "CARD_KEYWORD_EXCEPTIONAL": "Exceptionnel",
+  "CARD_KEYWORD_MYRIAD": "Myriade"
 }
