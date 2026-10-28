@@ -1,12 +1,11 @@
 import hashlib
-from html import escape
 import re
 import shutil
+from html import escape
 
 from shoggoth.arkham_build.output import export_file, export_url
 from shoggoth.files import overlay_dir
 from shoggoth.renderer.richtext.tags import parse_tag_attributes
-
 
 _IMAGE_TAG_PATTERN = re.compile(r"<image(?=\s|>)", re.IGNORECASE)
 

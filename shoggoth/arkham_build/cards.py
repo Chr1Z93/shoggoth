@@ -10,7 +10,6 @@ from shoggoth.arkham_build.card_types import (
 )
 from shoggoth.card import Face
 
-
 _BACK_FIELDS = {"name", "subname", "traits", "text", "flavor", "illustrator"}
 
 
@@ -78,9 +77,15 @@ def apply_card_metadata(card, records):
 
 
 def _export_face(code, face, card_type, image_mapper):
-    return {
+    record = {
         "code": code,
         "pack_code": face.card.project.id,
         "type_code": card_type.code,
         **export_face_fields(face, image_mapper=image_mapper),
     }
+
+    # The full-art template defaults clues for acts, which agendas don't have.
+    if card_type.code == "agenda" and "clues" not in face.data:
+        record.pop("clues", None)
+
+    return record

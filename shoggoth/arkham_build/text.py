@@ -1,9 +1,8 @@
-from collections.abc import Callable
 import re
+from collections.abc import Callable
 
 from shoggoth.card import Card, Face
 from shoggoth.card_translations import CARD_KEYWORD_DEFAULTS, load_card_translations
-
 
 # Maps an <image> tag to HTML.
 type ImageMapper = Callable[[str], str | None]
@@ -125,6 +124,9 @@ _TAG_MAP = {
     "<sign_4>": "[seal_d]",
     "<sign_5>": "[seal_e]",
 }
+
+# Printed keywords read "<b>Forced –</b>", arkham.build uses "<b>Forced</b> -".
+_KEYWORD_LABEL_PATTERN = re.compile(r"<b>\s*(.*?)\s*[–—-]\s*</b>\s*", re.IGNORECASE)
 
 _TEXT_MAP = {
     "---": "—",
@@ -292,6 +294,9 @@ class _TextMapper:
 
         catalog = load_card_translations(face.card.effective_language or "en")
         translated_text = catalog.get(key, CARD_KEYWORD_DEFAULTS[key])
+        label = _KEYWORD_LABEL_PATTERN.fullmatch(translated_text)
+        if label is not None:
+            translated_text = f"<b>{label[1]}</b> -"
 
         return self.map_tags(face, translated_text, keyword_path | {key})
 

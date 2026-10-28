@@ -1,6 +1,6 @@
+import re
 from collections.abc import Mapping, Sequence
 from html import unescape
-import re
 from typing import Required, TypedDict
 
 from shoggoth.arkham_build.text import map_text

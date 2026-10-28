@@ -1,5 +1,5 @@
-from collections.abc import Callable, Mapping
 import datetime
+from collections.abc import Callable, Mapping
 from typing import Any, NotRequired, TypedDict
 
 from shoggoth.arkham_build.assets import ImageAssetExporter
@@ -11,7 +11,6 @@ from shoggoth.card import Card
 from shoggoth.project import Project
 from shoggoth.renderer.card_renderer import CardRenderer
 from shoggoth.updater import get_current_version as shoggoth_version
-
 
 type CardExecutor = Callable[[list[Card], Callable[[Card], None]], None]
 

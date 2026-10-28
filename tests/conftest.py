@@ -1,19 +1,27 @@
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from shoggoth import arkham_build
 from shoggoth.project import Project
-
 
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 UPDATE_SNAPSHOTS = os.environ.get("UPDATE_SNAPSHOTS") == "1"
 
 
-class _NoRenderer:
-    """Exports without a url_prefix never render card images."""
+class _StubRenderer:
+    """Render every face as a blank card, so exports with images stay fast."""
+
+    locale = "en"
+
+    @contextmanager
+    def render_card_side(self, card, side, include_bleed=True):
+        horizontal = side.get("orientation", "vertical") == "horizontal"
+        yield Image.new("RGB", (2100, 1500) if horizontal else (1500, 2100))
 
 
 def _normalize(data):
@@ -32,7 +40,7 @@ def export(tmp_path):
         data = arkham_build.export_project(
             project,
             settings or {},
-            _NoRenderer(),
+            _StubRenderer(),
             card_executor=lambda cards, export_card: [
                 export_card(card) for card in cards
             ],
@@ -54,7 +62,9 @@ def snapshot(request):
             path.write_text(actual, encoding="utf-8")
             return
 
-        assert path.exists(), f"Missing snapshot {path.name}, run with UPDATE_SNAPSHOTS=1"
+        assert path.exists(), (
+            f"Missing snapshot {path.name}, run with UPDATE_SNAPSHOTS=1"
+        )
         assert actual == path.read_text(encoding="utf-8")
 
     return check

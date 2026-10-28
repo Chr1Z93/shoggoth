@@ -1,12 +1,11 @@
+import re
 from collections.abc import Mapping
 from html import unescape
-import re
 from typing import TypedDict
 
 from shoggoth.arkham_build.text import ImageMapper, map_text, resolve_text
-from shoggoth.card import Face
+from shoggoth.card import Card, Face
 from shoggoth.card_translations import load_card_translations
-
 
 # Numeric fields and their per-investigator flags.
 type NumericFields = dict[str, int | bool | None]
@@ -166,6 +165,9 @@ def _stage(face: Face) -> int | None:
 
 def _factions(face: Face) -> dict[str, str]:
     classes = face.get("classes", [])
+    # Encounter templates may default to a class that doesn't apply to the card.
+    if "classes" not in face.data and _is_encounter_card(face.card):
+        classes = []
     factions = list(dict.fromkeys(c for c in classes if c in _FACTIONS))
     factions = factions or [_default_faction(face)]
     return dict(zip(("faction_code", "faction2_code", "faction3_code"), factions))
@@ -181,13 +183,14 @@ def _subtype(face: Face) -> str | None:
 
 
 def _default_faction(face: Face) -> str:
-    card = face.card
-    if card.get("encounter_set") and (
+    return "mythos" if _is_encounter_card(face.card) else "neutral"
+
+
+def _is_encounter_card(card: Card) -> bool:
+    return bool(card.get("encounter_set")) and bool(
         _ENCOUNTER_ROLES.intersection(card.card_types)
         or card.back.card_type == "encounter"
-    ):
-        return "mythos"
-    return "neutral"
+    )
 
 
 def _raw_name(face: Face) -> str:
@@ -195,7 +198,9 @@ def _raw_name(face: Face) -> str:
 
 
 def _name(face: Face, image_mapper: ImageMapper | None) -> str:
-    return map_text(face, "name", _raw_name(face), image_mapper=image_mapper).strip()
+    # Scenario templates underline the name, which is styling, not markup.
+    name = re.sub(r"</?dbl>", "", _raw_name(face), flags=re.IGNORECASE)
+    return map_text(face, "name", name, image_mapper=image_mapper).strip()
 
 
 def _is_unique(face: Face) -> bool | None:

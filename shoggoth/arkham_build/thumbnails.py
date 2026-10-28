@@ -10,7 +10,6 @@ from shoggoth.arkham_build.card_types import (
 from shoggoth.card import Face
 from shoggoth.renderer.card_renderer import CARD_SIZES
 
-
 type Box = tuple[int, int, int, int]
 
 

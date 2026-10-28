@@ -6,7 +6,7 @@
     "exceptional": true,
     "name": "Stand Firm",
     "traits": "Spirit.",
-    "text": "Exceptional.\n[fast] When a [[Cultist]] enemy attacks you, play Stand Firm: Cancel that attack—it gets -1 [willpower].\n<b>Forced –</b> After this card is played: \"Not today.\"",
+    "text": "Exceptional.\n[fast] When a [[Cultist]] enemy attacks you, play Stand Firm: Cancel that attack—it gets -1 [willpower].\n<b>Forced</b> - After this card is played: \"Not today.\"",
     "deck_limit": 1,
     "position": 30,
     "quantity": 2,
