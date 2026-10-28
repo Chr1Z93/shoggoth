@@ -29,18 +29,10 @@ The exported object points to the card images _on your computer_, so other playe
 
 ## arkham.build
 
-> **Work in progress.** The arkham.build export is not finished, which is why the entry is labelled **arkham.build (WIP)** and Shoggoth reminds you after each export. If something in the exported file is wrong or missing, report it to the Shoggoth team, not to the arkham.build team.
-
-[arkham.build](https://arkham.build) is a popular deck builder that supports fan-made content. An **arkham.build (WIP)** entry saves card data to
+[arkham.build](https://arkham.build) is a popular deck builder that supports fan-made content. An **arkham.build** entry saves card data to
 `Export of <project name>/arkham-build/<project ID>.json` inside the project folder.
 
-The export uses **Investigator Link** to add linked cards to an investigator's
-`deck_requirements` and to set each card's `restrictions` to that investigator's
-code. Minis and unsupported cards are excluded. Bonded cards get restrictions,
-but are not added to deck requirements.
-
-The export also reads a single numeric deck size from the standard English
-**Deck Size** entry on the investigator's back.
+The export automatically infers card text and attributes, investigator <-> signature links, numeric deck size requirements and bonded card relations. It does not yet infer the investigator's deckbuilding options and customizable sheets for customizable cards. You can set these explicitly as outlined below.
 
 ### Explicit deckbuilding data
 
@@ -62,11 +54,7 @@ Use the card's **JSON** tab to add an `arkham_build` object under the card's
 }
 ```
 
-Use arkham.build field names and value formats. Explicit values replace
-generated values for the same field.
-
-The exporter reserves the nested `back` key. Fields inside `back` apply only
-to the separate back record linked by the generated `back_link`.
+Explicit values replace generated values for the same field. Fields inside `back` apply only to the separate back record linked by the generated `back_link` should there be one.
 
 ### Card images and icons
 
@@ -86,12 +74,10 @@ are copied only once.
 
 Pack and encounter set `icon_url` fields use the same URL prefix. Inline
 `<image src="…">`, `<exi>`, `<esi>`, `<project.icon>`, and `<encounter.icon>` tags
-become HTML images with hosted URLs. Color attributes are not applied.
+become HTML images with hosted URLs.
 If an image file is missing, the export logs a warning and omits its reference.
 
 Upload the project ID folder to that URL. Shoggoth does not upload images for you.
-
-Leave the prefix empty to skip images.
 
 To get your content listed on arkham.build, contact the arkham.build team.
 

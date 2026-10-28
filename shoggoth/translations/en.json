@@ -1064,7 +1064,7 @@
   "PE_SECTION_IMAGES": "Images",
   "PE_SECTION_PDF": "PDF",
   "PE_SECTION_TTS": "Tabletop Simulator",
-  "PE_SECTION_ARKHAM_BUILD": "arkham.build (WIP)",
+  "PE_SECTION_ARKHAM_BUILD": "arkham.build",
   "PE_SECTION_GUIDES": "Guides",
   "PE_PDF_FLAVOR_LABEL": "PDF flavor:",
   "PE_PRINCE_NOT_INSTALLED": "Prince XML is not installed, so PDF export is unavailable. Install it from the Export menu.",
