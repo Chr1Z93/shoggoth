@@ -2,12 +2,13 @@ import json
 import re
 from uuid import uuid4
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
-import shoggoth
 from shoggoth.files import defaults_dir
 
 _NUMBER_CHUNK_RE = re.compile(r'\d+|\D+')
+FOLDER_SEPARATOR = '/'
+FACE_NAMES = ('front', 'back')
 
 
 def natural_sort_key(value):
@@ -86,34 +87,65 @@ class Face:
     @property
     def fallback(self):
         if self._fallback is None:
-            if not self.data['type']:
-                return {}
             self._fallback_files = []
             self._fallback = self.__build_fallback(self.data['type'])
         return self._fallback
 
     @property
+    def inherit(self):
+        """ The face this one inherits from, as {'card': id, 'face': 'front'|'back'},
+            or None.
+        """
+        link = self.data.get('inherit')
+        if isinstance(link, dict) and link.get('card') and link.get('face') in FACE_NAMES:
+            return link
+        return None
+
+    @property
+    def inherited_face(self):
+        """ The Face this one inherits from, or None (no inherit, or the card
+            is gone). Looked up fresh on every call: the source can change or
+            be deleted at any time, and nothing would tell us to invalidate a
+            cached copy.
+        """
+        link = self.inherit
+        if not link:
+            return None
+        card = self.card.project.get_card(link['card'])
+        return card.get_face(link['face']) if card else None
+
+    def _stored(self, key, _seen=None):
+        """ The value stored for key on this face, or on the face it
+            inherits from (recursively). Defaults files are not consulted.
+            Raises KeyError when no face in the chain stores the key.
+            Inheritance cycles are cut where they loop.
+
+            'type' is never inherited in practice: every face stores its own.
+        """
+        if key in self.data:
+            return self.data[key]
+        _seen = _seen or set()
+        _seen.add(id(self.data))
+        source = self.inherited_face
+        if source is None or id(source.data) in _seen:
+            raise KeyError(key)
+        return source._stored(key, _seen)
+
+    def _stored_keys(self):
+        """ Every key _stored can answer for """
+        keys, seen, face = set(), set(), self
+        while face is not None and id(face.data) not in seen:
+            seen.add(id(face.data))
+            keys |= set(face.data)
+            face = face.inherited_face
+        return keys - {'inherit'}
+
+    @property
     def fallback_files(self):
         """Project-local defaults files this face's fallback chain was loaded
         from (the asset pack's own defaults are not listed)."""
-        self.fallback
+        self.fallback  # noqa: B018 -- loading the fallback is what fills _fallback_files
         return tuple(self._fallback_files)
-
-    def _resolved_classes(self):
-        """ This face's class list, resolving a 'classes': '<copy>' fallback
-            (e.g. investigator_back mirroring the front's class) by reading
-            the other side's raw class data directly.
-
-            Can't just call self.get('classes')/other_side.get('classes')
-            here: get() resolves through __getitem__, which for a face with
-            variant blocks calls tags() to evaluate them - and tags() is what
-            calls this, so that route recurses. Reading .data directly breaks
-            the cycle.
-        """
-        classes = self.data.get('classes')
-        if classes is None and self.fallback.get('classes') == '<copy>':
-            classes = self.other_side.data.get('classes')
-        return classes or []
 
     def tags(self):
         """ The set of tags variant blocks can match against:
@@ -122,7 +154,7 @@ class Face:
             card belongs to an encounter set).
         """
         tags = set()
-        classes = self._resolved_classes()
+        classes = self.get('classes', [])
         if len(classes) == 1:
             tags.add(classes[0])
         elif len(classes) > 1:
@@ -137,8 +169,32 @@ class Face:
         return tags
 
     def __getitem__(self, key):
-        if key in self.data:
-            return self.data[key]
+        """ The face's value for key, fully resolved: stored on this face,
+            else inherited (see inherit), else from the defaults chain; a
+            '<copy>' is then replaced by the other side's value.
+            Raises KeyError when nothing provides one.
+
+            face.data[key] is the value this face itself holds (which may be
+            '<copy>', or missing because it's inherited).
+        """
+        value = self._resolve(key)
+        if value == '<copy>':
+            value = self.other_side._resolve(key)
+            if value == '<copy>':  # both sides copying each other
+                raise KeyError(key)
+        return value
+
+    def _resolve(self, key):
+        """ __getitem__ without the '<copy>' step """
+        try:
+            return self._stored(key)
+        except KeyError:
+            pass
+
+        # classes decide which variant/suffixed keys apply (tags() reads them),
+        # so they can't come from those themselves - that would recurse
+        if key == 'classes':
+            return self.fallback[key]
 
         # variant blocks: later blocks override earlier ones
         variants = self.fallback.get('variants')
@@ -163,23 +219,19 @@ class Face:
         """ All keys resolvable on this face: card data, active variant
             blocks, and the base fallback.
         """
-        keys = (set(self.data) | set(self.fallback)) - {'variants', 'parent'}
+        keys = (self._stored_keys() | set(self.fallback)) - {'variants', 'parent'}
         tags = self.tags()
         for variant in self.fallback.get('variants') or []:
             if matches(variant.get('when'), tags):
                 keys |= set(variant.get('set', {}))
         return keys
 
-    def get(self, key, default=''):
+    def get(self, key, default:Any=''):
         try:
-            result = self.__getitem__(key)
-            if result == '<copy>':
-                return self.other_side[key]
-            if result is None:
-                return default
-            return result
+            result = self[key]
         except KeyError:
             return default
+        return default if result is None else result
 
     def get_path(self, key, default=''):
         res = self.get(key, default)
@@ -187,14 +239,15 @@ class Face:
             return self.card.project.find_file(Path(res))
 
     def set(self, key, value):
-        # invalidate cached fallback if fallback should change
         if key == 'type':
+            if not value:
+                raise ValueError('a face must have a type')
             self._fallback = None
 
         changed = self.data.get(key) != value
 
         self.data[key] = value
-        if value is None and key != 'type':
+        if value is None:
             del self.data[key]
 
         # Marking dirty (after the data is in place) notifies the project's
@@ -204,7 +257,7 @@ class Face:
             self.card.dirty = True
 
     def get_class(self):
-        cls = self._resolved_classes()
+        cls = self.get('classes', [])
         if not cls:
             return None
         if len(cls) == 1:
@@ -213,7 +266,7 @@ class Face:
 
     def get_multi_patterns(self):
         """ Returns a number of patterns to match for multi class cards """
-        cls_count = len(self._resolved_classes())
+        cls_count = len(self.get('classes', []))
         # 1st - straight count: multi3
         yield f'multi{cls_count}'
         # 2nd - plus, ranging from highest to lowest: multi4+
@@ -276,9 +329,6 @@ class Face:
         return self.card.front
 
 
-FOLDER_SEPARATOR = '/'
-
-
 def split_folder(folder):
     """ The segments of a folder string, outermost first """
     return [part.strip() for part in str(folder or '').split(FOLDER_SEPARATOR) if part.strip()]
@@ -311,7 +361,7 @@ class Card:
 
     def __init__(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         project,
         encounter=None,
     ):
@@ -395,7 +445,7 @@ class Card:
             self.dirty = True
 
     @property
-    def encounter_number(self):
+    def encounter_number(self) -> None | str:
         if not self.encounter:
             return None
         return self.data.get('encounter_number', -1)
@@ -440,14 +490,13 @@ class Card:
 
     @property
     def has_versions(self):
-        if not isinstance(self.encounter_number, str) or '-' not in self.encounter_number:
-            return False
-        return True
+        return isinstance(self.encounter_number, str) and '-' in self.encounter_number
 
     @property
     def versions(self):
         if not self.has_versions:
             return [self]
+        assert isinstance(self.encounter_number, str)
 
         versions = []
         r = self.encounter_number.split('-')
@@ -492,6 +541,14 @@ class Card:
             return self.project.get('default_copyright', default)
         return self.data.get(key, default)
 
+    def get_face(self, name) -> Face:
+        """ The face called name ('front' or 'back') """
+        return self.front if name == 'front' else self.back
+
+    def face_name(self, face) -> str:
+        """ 'front' or 'back': the inverse of get_face """
+        return 'front' if face is self.front else 'back'
+
     def get_meta(self, key, default=None):
         """ Reads a designer-facing metadata field (bonded/set_aside/description/
             notes/tags/...), stored under data['meta'] rather than as a top-level key.
@@ -512,7 +569,7 @@ class Card:
         return 'front' in data and 'back' in data
 
     @staticmethod
-    def new(name) -> Dict[str, Any]:
+    def new(name) -> dict[str, Any]:
         return {
             'name': name,
             'id': str(uuid4()),
