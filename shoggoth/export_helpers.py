@@ -307,7 +307,18 @@ def _sced_location_data(face):
     victory = face.get('victory')
     if victory:
         try:
-            data['victory'] = _try_int(victory)
+            # Attempt direct conversion to number
+            number = _try_int(victory)
+
+            if number is None:
+                # Use regex to find a number after a space
+                match = re.search(r" (\d+)", victory)
+                number = _try_int(match.group(1)) if match else None
+
+            # Write victory data if number was successfully detected
+            if number is not None:
+                data['victory'] = number
+
         except (ValueError, TypeError):
             pass
   
