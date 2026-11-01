@@ -506,7 +506,11 @@ def build_token_data(data):
             text = entry.get("text", "")
             modifier = get_modifier(text)
 
-            for token_id in entry.get("token", []):
+            tokens = entry.get("token", [])
+            if not isinstance(tokens, list):
+                tokens = [tokens]
+
+            for token_id in tokens:
                 token_name = token_id.replace("_", " ").title()
 
                 token_data[side][token_name] = {
